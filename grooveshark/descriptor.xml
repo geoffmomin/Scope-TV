@@ -1,0 +1,16 @@
+	<app>
+		<id>bartsidee.grooveshark</id>
+		<name>GrooveShark</name>
+		<version>0.7</version>
+		<description>The script gives you access to Grooveshark and almost all of its contents. Access your playlist, manipulate them and create new ones. Enjoy.</description>
+		<thumb>http://www.bartsidee.nl/boxee/apps/grooveshark/thumb.png</thumb>
+		<repositoryid>com.bart</repositoryid>
+		<repository>http://www.bartsidee.nl/boxee</repository>
+		<media>audio</media>
+		<copyright>bartsidee</copyright>
+		<email>bartsidee@gmail.com</email>
+		<type>skin</type>
+		<startWindow>14000</startWindow>
+		<platform>all</platform>
+		<minversion>0.9.14</minversion>
+	</app>

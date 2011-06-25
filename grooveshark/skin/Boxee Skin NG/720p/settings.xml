@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+<window type="dialog" id="16000">
+        <defaultcontrol always="true">61</defaultcontrol>
+        <allowoverlay>no</allowoverlay>
+        <onload lang="python">
+<![CDATA[
+import mc
+__settings__ = mc.GetApp().GetLocalConfig()
+username = __settings__.GetValue("username")
+password = __settings__.GetValue("password")
+
+if username != '':
+    mc.GetWindow(16000).GetButton(61).SetLabel('Username: ' + username)
+if password != '':
+    count = len(password)
+    mc.GetWindow(16000).GetButton(62).SetLabel('Password: ' + count*'*')
+	
+]]>
+        </onload>
+		<controls>
+                <control type="image">
+					<description>background image overlay</description>
+					<animation type="WindowOpen">
+						<effect type="fade" start="0" end="100" time="200" delay="0"/>
+					</animation>
+					<animation type="WindowClose">
+						<effect type="fade" start="100" end="0" time="200" delay="0"/>
+					</animation>
+					<posx>410</posx>
+					<posy>155</posy>
+					<width>460</width>
+					<height>410</height>
+					<texture>gs-bg-menu.png</texture>
+				</control>
+				
+					
+                <control type="label">
+					<posx>440</posx>
+					<posy>185</posy>
+					<width>400</width>
+					<height>30</height>
+					<font>font20</font>
+					<align>left</align>
+					<aligny>center</aligny>
+					<label>Settings</label>
+					<textcolor>0xFFFFFFFF</textcolor>
+				</control>
+				
+                <control type="label">
+					<posx>445</posx>
+					<posy>225</posy>
+					<width>395</width>
+					<height>30</height>
+					<font>font18</font>
+					<align>left</align>
+					<aligny>center</aligny>
+					<label>Login:</label>
+					<textcolor>0xFFFFFFFF</textcolor>
+				</control>
+	            
+				<control type="button" id="61">
+						<posx>460</posx>
+						<posy>260</posy>
+						<width>360</width>
+						<height>30</height>
+						<label>Username: (unset)</label>
+						<font>font16</font>
+                        <align>center</align>
+						<aligny>center</aligny>
+						<textcolor>0xFFFFFFFF</textcolor>
+                        <focusedcolor>0xFFFFFFFF</focusedcolor>
+                        <aspectratio>stretch</aspectratio>
+						<texturefocus>button_focus.png</texturefocus>
+						<texturenofocus></texturenofocus>
+						<onup>62</onup>
+                        <ondown>62</ondown>
+						<onclick lang="python">
+<![CDATA[
+__settings__ = mc.GetApp().GetLocalConfig()
+response  = mc.ShowDialogKeyboard('Username', __settings__.GetValue("username"), False)
+if response != '':
+    __settings__.SetValue("username", response)
+    mc.GetWindow(16000).GetButton(61).SetLabel('Username: ' + response)
+    username = response
+]]>
+                        </onclick>
+				</control>		
+				<control type="button" id="62">
+						<posx>460</posx>
+						<posy>300</posy>
+						<width>360</width>
+						<height>30</height>
+						<label>Password: (unset)</label>
+						<font>font16</font>
+                        <align>center</align>
+						<aligny>center</aligny>
+						<textcolor>0xFFFFFFFF</textcolor>
+                        <focusedcolor>0xFFFFFFFF</focusedcolor>
+                        <aspectratio>stretch</aspectratio>
+						<texturefocus>button_focus.png</texturefocus>
+						<texturenofocus></texturenofocus>
+                        <onup>61</onup>
+						<ondown>61</ondown>
+						<onclick lang="python">
+<![CDATA[
+__settings__ = mc.GetApp().GetLocalConfig()
+response  = mc.ShowDialogKeyboard('Password', '', True)
+if response != '':
+    __settings__.SetValue("password", response)
+    count = len(response)
+    mc.GetWindow(16000).GetButton(62).SetLabel('Password: ' + count*'*')
+    password = response
+]]>
+                        </onclick>
+				</control>					
+
+			
+		</controls>
+</window>
