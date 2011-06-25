@@ -1,0 +1,15 @@
+<app>
+  <id>bartsidee.music</id>
+  <name>Music Player</name>
+  <version>1.1</version>
+  <description>Music player, lets you control your boxee music</description>
+  <thumb>http://boxee.bartsidee.nl/apps/music/thumb.png</thumb>
+  <repository>http://boxee.bartsidee.nl</repository>
+  <media>music</media>
+  <copyright>Boxee</copyright>
+  <email>bartsidee@gmail.com</email>
+  <type>skin</type>
+  <startWindow>default</startWindow>
+  <platform>all</platform>
+  <minversion>0.9.21</minversion>
+</app>
