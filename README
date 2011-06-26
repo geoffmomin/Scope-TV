@@ -1,7 +1,11 @@
 ##########################################################################
-###### Bartsidee Boxee Repository ##################
+###### Bartsidee Boxee Open Apps ##################
 ##########################################################################
 
+You can download an app and put it in the boxee application folder to execute it. 
+Note that there are no automatic updates like in a regular repository.
+For the boxee box you need to apply for a developer account, 
+you can then copy the app to a usb drive with the appropriate developer key and execute it on the box.
 
 ////////////////////////////////////////////////////////////////////////////////////
 
