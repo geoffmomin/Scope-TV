@@ -9,6 +9,21 @@ power, input, storage, host, led, thermal ansystem configuration / status from t
 For more information regarding HAL please read the manual at:
 http://tinyurl.com/boxeehal
 
+HOW TO USE:
+import boxeehal
+response = boxeehal.get(CLASS, METHOD[,PARAMS])
+
+
+EXAMPLES:
+//1
+import boxeehal
+print boxeehal.get('input', 'GetAllDevices')
+-- {u'class': u'input', u'devices': [{u'instance': 0, u'path': u'/dev/input/event0', u'phys': u'/class/input/input0', u'label': u'D-Link Boxee D-Link Boxee Receiver d.15'}, {u'instance': 1, u'path': u'/dev/input/event1', u'phys': u'/class/input/input1', u'label': u'D-Link Boxee D-Link Boxee Receiver d.15'}, {u'instance': 2, u'path': u'/dev/input/event2', u'phys': u'/class/input/input2', u'label': u'D-Link Boxee D-Link Boxee Receiver d.15'}], u'method': u'GetAllDevices'}
+
+//2
+import boxeehal
+params = { 'instance' : 0}
+result = boxeehal.get('ethernet', 'GetConfig', params)
 
 Written by bartsidee
 """
