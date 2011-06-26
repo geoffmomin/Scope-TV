@@ -55,9 +55,13 @@ version 2.4 :
 
 version 2.5 :
 - test is now in folder test
+
+version 2.6
+- Modified for boxee by bartsidee
+- db saved using boxee api
 """
 
-version = "2.5"
+version = "2.6"
 
 import os
 try: import cPickle

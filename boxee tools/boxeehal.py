@@ -25,6 +25,7 @@ import boxeehal
 params = { 'instance' : 0}
 result = boxeehal.get('ethernet', 'GetConfig', params)
 
+BSD License
 Written by bartsidee
 """
 
