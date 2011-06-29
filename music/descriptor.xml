@@ -1,7 +1,7 @@
 <app>
   <id>bartsidee.music</id>
   <name>Music Player</name>
-  <version>1.1</version>
+  <version>1.3</version>
   <description>Music player, lets you control your boxee music</description>
   <thumb>http://boxee.bartsidee.nl/apps/music/thumb.png</thumb>
   <repository>http://boxee.bartsidee.nl</repository>
@@ -12,5 +12,4 @@
   <startWindow>default</startWindow>
   <platform>all</platform>
   <minversion>0.9.21</minversion>
-  <test-app>true</test-app>
 </app>

@@ -22,79 +22,12 @@ elif 'darwin' in sys.platform:
 
 from pysqlite2 import dbapi2 as sqlite
 
-def getAlbumCover(artist, album):
-    url         = "http://api.search.live.net/json.aspx?Appid=2F387159F83018AE62877A6F1C02322283B4ADEE&query=%%22%s%%22+%%22%s%%22&sources=image&image.count=1" % ( quote_plus( artist ), quote_plus( album ) )
-    string      = _http.Get( url )
-    try:    result = json.loads( string )
-    except: result = {}
-    try:    return result['SearchResponse']['Image']['Results'][0]['Thumbnail']['Url']
-    except: return ''
+def getImage(str1, str2):
+    return "http://www.scripts.allalla.com/music_pipe.php?q=%%22%s%%22+%%22%s%%22" % ( quote_plus( str1 ), quote_plus( str2 ) )
 
-class coverArt(Thread):
-    def __init__ (self):
-        self.focus  = 1000000
-        self.list   = mc.GetWindow(_id).GetList(55)
-        self.cache  = ''
-        self.close = False
-        Thread.__init__(self)
-
-    def run(self):
-        while not self._notactive():
-            focus = self.list.GetFocusedItem()
-            if focus != self.focus:
-                cache = False
-                self.focus = focus
-                item = self.list.GetItem(focus)
-                if self.cache != item.GetThumbnail():
-                    try:
-                        if item.GetThumbnail().strip() == '':
-                            path = getAlbumCover(item.GetArtist(), item.GetAlbum() )
-                            if self.cache != path :
-                                if item.GetAlbum().strip() != '':
-                                    path_tmp = mc.GetTempDir() + self.slugify(item.GetAlbum()) + ".jpg"
-                                else:
-                                    path_tmp = mc.GetTempDir() + self.slugify(item.GetLabel()) + ".jpg"
-                                if not os.path.isfile(path_tmp):
-                                    _http.Download(str(path), path_tmp)
-                                cache = path_tmp
-                        else:
-                            cache = item.GetThumbnail()
-                        self.cache = cache
-                    except:
-                        print traceback.format_exc()
-
-                if cache:
-                    mc.GetWindow(_id).GetImage(222).SetTexture( str(cache))
-
-            else:
-                if not self.close:
-                    xbmc.sleep(800)
-
-        if self.isAlive():
-            try:
-                self._Thread__stop()
-            except:
-                print('Coverart Thread could not be terminated')
-
-    def slugify(self, string):
-        slug = unicodedata.normalize('NFKD', unicode(string))
-        slug = slug.encode('ascii', 'ignore').lower()
-        slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
-        slug = re.sub(r'--+',r'-',slug)
-        return re.sub(r'[\s_-]+', '-', string)[:41]
-
-    def kill(self):
-        self.close = True
-
-    def _notactive(self):
-        if self.close:
-            return True
-        else:
-            try:
-                mc.GetWindow(_id)
-                return False
-            except:
-                return True
+def Duration(seconds):
+    m, s = divmod(seconds, 60)
+    return "%02d:%02d" % (m, s)
 
 def down(**kwargs):
     if kwargs.get('id', False):
@@ -107,11 +40,12 @@ def down(**kwargs):
 
     if 'boxeedb:' in path:
         items = _db.GetDirectory( str( path ) )
-        if 'history:' in path:
-            label = 'history'
-        else:
-            try:    label = re.compile('boxeedb\://(.*?)/').findall(path)[0]
-            except: label = path.replace('boxeedb://', '')
+        if len(items) < 1:
+            mc.ShowDialogNotification("No items found")
+            return
+        
+        try:    label = re.compile('boxeedb\://(.*?)/').findall(path)[0]
+        except: label = path.replace('boxeedb://', '')
 
         if kwargs.get('push', True):
             mc.GetWindow(_id).PushState()
@@ -120,16 +54,15 @@ def down(**kwargs):
             item.SetProperty('header', label)
 
         mc.GetWindow(_id).GetList(55).SetItems( items )
-        _cover.focus = 1000000
-	#mc.GetWindow(_id).GetList(55).SetContentURL( path )
 
     elif path == 'home':
         items = mc.ListItems()
 
         home = [{'label':'Artists', 'path':'boxeedb://artists', 'header':'HOME', 'thumb':'artists.png'},
                 {'label':'Albums', 'path':'boxeedb://albums', 'header':'HOME', 'thumb':'albums.png'},
-                {'label':'Genre', 'path':'boxeedb://genres', 'header':'HOME', 'thumb':'history.png'},
-                {'label':'Random', 'path':'boxeedb://random/?limit=40', 'header':'HOME', 'thumb':'history.png'},
+                {'label':'Genre', 'path':'boxeedb://genres', 'header':'HOME', 'thumb':'genre.png'},
+                {'label':'Random', 'path':'boxeedb://random/?limit=40', 'header':'HOME', 'thumb':'shuffle.png'},
+                {'label':'Search', 'path':'search', 'header':'HOME', 'thumb':'search.png'},
                 {'label':'Now Playing', 'path':'nowplaying', 'header':'HOME', 'thumb':'now.png'},]
 
         for i in home:
@@ -140,7 +73,24 @@ def down(**kwargs):
             item.SetProperty('header', i['header'])
             items.append(item)
         mc.GetWindow(_id).GetList(55).SetItems( items )
-        _cover.focus = 1000000
+
+    elif path == 'search':
+        mc.GetWindow(_id).PushState()
+        items = mc.ListItems()
+
+        search = [{'label':'Artists', 'path':'boxeedb://search/?id=artists', 'header':'SEARCH', 'thumb':'search.png'},
+                {'label':'Albums', 'path':'boxeedb://search/?id=albums', 'header':'SEARCH', 'thumb':'search.png'},
+                {'label':'Genre', 'path':'boxeedb://search/?id=genres', 'header':'SEARCH', 'thumb':'search.png'},
+        ]
+        for i in search:
+            item = mc.ListItem(mc.ListItem.MEDIA_UNKNOWN)
+            item.SetLabel(i['label'])
+            item.SetPath(i['path'])
+            item.SetThumbnail(i['thumb'])
+            item.SetProperty('header', i['header'])
+            items.append(item)
+        mc.GetWindow(_id).GetList(55).SetItems( items )
+
     elif path == 'nowplaying':
         playlist = mc.PlayList(mc.PlayList.PLAYLIST_MUSIC)
         if playlist.Size() > 0:
@@ -151,7 +101,6 @@ def down(**kwargs):
                 item.SetProperty('header', 'Now Playing')
                 items.append(item)
             mc.GetWindow(_id).GetList(55).SetItems( items )
-            _cover.focus = 1000000
         else:
             mc.ShowDialogNotification("No music playing")
 
@@ -228,7 +177,7 @@ class dbAcces:
         if len(data) == 0:
             data = [path]
 
-        if data[0] not in ['artists', 'albums', 'genres', 'album', 'artist', 'genre', 'random' ]:
+        if data[0] not in ['artists', 'albums', 'genres', 'album', 'artist', 'genre', 'random', 'search' ]:
             return ''
 
         params = {}
@@ -242,21 +191,38 @@ class dbAcces:
         sql_genres = 'SELECT DISTINCT strGenre FROM albums'
         sql_files = 'SELECT audio_files.strTitle, audio_files.iDuration, audio_files.iTrackNumber, audio_files.strPath, albums.strArtwork, albums.strTitle, artists.strName FROM audio_files, albums, artists WHERE audio_files.idAlbum = albums.idAlbum AND albums.idArtist = artists.idArtist'
         sql_and = ' AND '
+        sql_where = ' WHERE '
 
         if data[0] == 'artists':
-            sql = sql_artists
+            sql = sql_artists + ' ORDER BY strName COLLATE NOCASE'
             order = 'order_artists'
 
         elif data[0] == 'albums':
-            sql = sql_albums
+            sql = sql_albums + ' ORDER BY albums.strTitle COLLATE NOCASE'
             order = 'order_albums'
 
         elif data[0] == 'genres':
-            sql = sql_genres
+            sql = sql_genres + ' ORDER BY strGenre COLLATE NOCASE'
             order = 'order_genres'
 
+        elif data[0] == 'search' and params.get('id', False):
+            response = mc.ShowDialogKeyboard("Search - %s" % params['id'], "", False)
+            if len(response) > 1:
+                if params['id'] == 'artists':
+                    sql = '%s%sstrName LIKE "%%%s%%"' % (sql_artists, sql_where, response)
+                    order = 'order_artists'
+                elif params['id'] == 'albums':
+                    sql = '%s%salbums.strTitle LIKE "%%%s%%"' % (sql_albums, sql_and, response)
+                    order = 'order_albums'
+                elif params['id'] == 'genres':
+                    sql = '%s%sstrGenre LIKE "%%%s%%"' % (sql_genres, sql_where, response)
+                    order = 'order_genres'
+
         elif data[0] == 'artist':
-            if params.get('id', False):
+            if params.get('songs', False) and params.get('id', False):
+                sql = sql_files + sql_and +'audio_files.idArtist = "%s" ORDER BY RANDOM()' % params['id']
+                order = 'order_files'
+            elif params.get('id', False):
                 sql = sql_albums + sql_and +'albums.idArtist = "%s"' % params['id']
                 order = 'order_albums'
 
@@ -266,7 +232,10 @@ class dbAcces:
                 order = 'order_files'
 
         elif data[0] == 'genre':
-            if params.get('id', False):
+            if params.get('songs', False) and params.get('id', False):
+                sql = sql_files + sql_and +'albums.strGenre = "%s" ORDER BY RANDOM()' % params['id']
+                order = 'order_files'
+            elif params.get('id', False):
                 sql = sql_albums + sql_and + 'albums.strGenre = "%s"' % params['id'].strip()
                 order = 'order_albums'
 
@@ -298,14 +267,25 @@ class dbAcces:
                     item.SetPath('boxeedb://artist/?id=%s' % str(row[0]))
                     item.SetThumbnail(row[2].encode("utf-8"))
                     items.append(item)
+
+
         elif order == 'order_albums':
+            if 'artist' in path or 'genre' in path:
+                item = mc.ListItem(mc.ListItem.MEDIA_UNKNOWN)
+                item.SetLabel('[COLOR FFFFFFFF]Shuffle all Songs[/COLOR]')
+                item.SetPath(path + '&songs=all')
+                item.SetThumbnail('shuffle.png')
+                items.append(item)
             for row in data:
                 if not row[1] == '':
                     item = mc.ListItem(mc.ListItem.MEDIA_UNKNOWN)
                     item.SetLabel(row[1].encode("utf-8"))
                     item.SetAlbum(row[1].encode("utf-8"))
                     item.SetPath('boxeedb://album/?id=%s' % str(row[0]))
-                    item.SetThumbnail(row[2].encode("utf-8"))
+                    if row[2] != '':
+                        item.SetThumbnail(row[2].encode("utf-8"))
+                    else:
+                        item.SetThumbnail( getImage(row[3].encode("utf-8"), row[1].encode("utf-8")) )
                     item.SetArtist(row[3].encode("utf-8"))
                     items.append(item)
         elif order == 'order_genres':
@@ -314,6 +294,7 @@ class dbAcces:
                     item = mc.ListItem(mc.ListItem.MEDIA_UNKNOWN)
                     item.SetLabel(row[0].encode("utf-8"))
                     item.SetArtist(row[0].encode("utf-8"))
+                    item.SetThumbnail( getImage('music genre', row[0].encode("utf-8")) )
                     item.SetPath('boxeedb://genre/?id=%s' % str(row[0]))
                     items.append(item)
         elif order == 'order_files':
@@ -322,9 +303,13 @@ class dbAcces:
                     item = mc.ListItem(mc.ListItem.MEDIA_UNKNOWN)
                     item.SetLabel(row[0].encode("utf-8"))
                     item.SetDuration( row[1] )
+                    item.SetProperty( 'time', Duration(row[1]) )
                     item.SetTrackNumber( row[2] )
                     item.SetPath(row[3].encode("utf-8"))
-                    item.SetThumbnail(row[4].encode("utf-8"))
+                    if row[4] != '':
+                        item.SetThumbnail(row[4].encode("utf-8"))
+                    else:
+                        item.SetThumbnail( getImage(row[6].encode("utf-8"), row[5].encode("utf-8")) )
                     item.SetAlbum(row[5].encode("utf-8"))
                     item.SetArtist(row[6].encode("utf-8"))
                     items.append(item)
@@ -344,5 +329,4 @@ except: _embedded   = False
 _id                 = 17000
 _http               = mc.Http()
 _player             = myPlayer()
-_cover              = coverArt()
-_db     = dbAcces()
+_db                 = dbAcces()

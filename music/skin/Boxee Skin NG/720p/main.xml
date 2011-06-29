@@ -58,15 +58,15 @@
 					<scroll>false</scroll>
 				</control>
 				<control type="label">
-					<posx>550</posx>
+					<posx>570</posx>
 					<posy>0</posy>
 					<width>80</width>
 					<height>50</height>
-					<aligny>center</aligny>
-					<font>font22</font>
+					<aligny>right</aligny>
+					<font>font20b</font>
 					<textcolor>FF323232</textcolor>
 					<selectedcolor>FFFFFFFF</selectedcolor>
-					<label>$INFO[ListItem.Duration]</label>
+					<label>$INFO[ListItem.Property(custom:time)]</label>
 				</control>
 			</itemlayout>
 			<focusedlayout width="0" height="50">
@@ -93,15 +93,15 @@
 					<scroll>false</scroll>
 				</control>
 				<control type="label">
-					<posx>550</posx>
-					<posy>0</posy>
+					<posx>570</posx>
+					<posy>5</posy>
 					<width>80</width>
 					<height>50</height>
-					<aligny>center</aligny>
-					<font>font26b</font>
+					<aligny>right</aligny>
+					<font>font24b</font>
 					<textcolor>FF212121</textcolor>
 					<selectedcolor>FFFFFFFF</selectedcolor>
-					<label>$INFO[ListItem.Duration]</label>
+					<label>$INFO[ListItem.Property(custom:time)]</label>
 				</control>
 			</focusedlayout>
 			<content type="url">
@@ -125,6 +125,14 @@ app.down(id=55)
 		</control>
 		
 		<!-- Scroll Bar -->
+		<control type="image">
+			<posx>1275</posx>
+			<posy>140</posy>
+			<width>5</width>
+			<height>468</height>
+			<texture>grey_transparant.png</texture>
+			<visible allowhiddenfocus="true">Control.IsVisible(55) + Control.HasFocus(60)</visible>
+		</control>
 		<control type="scrollbar" id="60">
 			<animation type="WindowOpen">
 				<effect type="zoom" time="400" center="640,360" start="50" end="100" tween="cubic" easing="out" />
@@ -138,7 +146,7 @@ app.down(id=55)
 				<effect type="zoom" time="600" center="640,360" start="100" end="50" tween="cubic" easing="inout" />
 				<effect type="fade" time="400" start="100" end="0" />
 			</animation>
-			<posx>1270</posx>
+			<posx>1268</posx>
 			<posy>140</posy>
 			<width>18</width>
 			<height>468</height>
@@ -151,6 +159,7 @@ app.down(id=55)
 			<orientation>vertical</orientation>
 			<animation effect="fade" start="0" end="100" time="400" condition="Control.HasFocus(60)">Conditional</animation>
 		</control>
+
 		
   		<control type="group">
 			<posx>250</posx>
@@ -169,21 +178,14 @@ app.down(id=55)
 				<width>200</width>
 				<height>200</height>
 				<texture>default-cover.png</texture>
-				<visible>StringCompare(Control.GetLabel(222),) + StringCompare(Control.GetLabel(223),)</visible>
-			</control>
-			<control type="image" id="222">
-				<posx>25</posx>
-				<posy>25</posy>
-				<width>200</width>
-				<height>200</height>
-				<texture></texture>
+				<visible>StringCompare(Control.GetLabel(223),)</visible>
 			</control>
 			<control type="largeimage" id="223">
 				<posx>25</posx>
 				<posy>25</posy>
 				<width>200</width>
 				<height>200</height>
-				<texture></texture>
+				<texture>$INFO[Container(55).ListItem.Thumb]</texture>
 			</control>
 			<control type="image">
 				<posx>0</posx>
@@ -605,6 +607,7 @@ mc.GetActiveWindow().GetControl(55).SetFocus()
 						<width>40</width>
 						<height>33</height>
 						<onleft>3003</onleft>
+						<onright>3005</onright>
 						<texturenofocus>lfm_btn_next.png</texturenofocus>
 						<texturefocus>lfm_btn_next_on.png</texturefocus>
 						<onclick lang="python">
@@ -612,6 +615,33 @@ mc.GetActiveWindow().GetControl(55).SetFocus()
 app._player.PlayNext()
 ]]>
 						</onclick>
+						<ondown lang="python">
+<![CDATA[
+mc.GetActiveWindow().GetControl(55).SetFocus()
+]]>
+						</ondown>
+					</control>
+					<control type="button" id="3005">
+						<width>40</width>
+						<height>33</height>
+						<onleft>3004</onleft>
+						<onright>3006</onright>
+						<texturenofocus>lfm_btn_down.png</texturenofocus>
+						<texturefocus>lfm_btn_down_on.png</texturefocus>
+						<onclick>VolumeDown</onclick>
+						<ondown lang="python">
+<![CDATA[
+mc.GetActiveWindow().GetControl(55).SetFocus()
+]]>
+						</ondown>
+					</control>
+					<control type="button" id="3006">
+						<width>40</width>
+						<height>33</height>
+						<onleft>3005</onleft>
+						<texturenofocus>lfm_btn_up.png</texturenofocus>
+						<texturefocus>lfm_btn_up_on.png</texturefocus>
+						<onclick>VolumeUp</onclick>
 						<ondown lang="python">
 <![CDATA[
 mc.GetActiveWindow().GetControl(55).SetFocus()
@@ -735,14 +765,5 @@ mc.GetActiveWindow().GetControl(55).SetFocus()
 			</control>
 		</control>
 	</controls>
-	<onunload lang="python">
-<![CDATA[
-import xbmc
-import app
-app._cover.kill()
-while app._cover.isAlive():
-    xbmc.sleep(100) 
-]]>
-	</onunload>
 
 </window>
