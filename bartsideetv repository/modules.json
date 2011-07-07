@@ -1,0 +1,20 @@
+{
+	"ard":{"version":3, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"DE"},
+	"bbc":{"version":1, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"UK"},
+	"cbc":{"version":1, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"CA"},
+	"hulu":{"version":4, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"US"},
+	"navix":{"version":2, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":""},
+	"net5":{"version":3, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"NL"},
+	"nl24":{"version":1, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"NL"},
+	"sbs6":{"version":2, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"NL"},
+	"rtl":{"version":2, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"NL"},
+	"svt":{"version":2, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"SE"},
+	"uzg":{"version":7, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"NL"},
+	"veronica":{"version":2, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"NL"},
+	"youtube":{"version":2, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":""},
+	"zdf":{"version":1, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"DE"},
+	"tmf":{"version":2, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"NL"},
+	"itv":{"version":2, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"UK"}, 
+	"animefreak":{"version":2, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":""},
+	"chinatv":{"version":2, "path":"http://boxee.bartsidee.nl/apps/tv/modules/", "country":"CN"}
+}
