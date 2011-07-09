@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<window type="window" id="17000">
+<window type="window" id="14000">
 	<backgroundcolor>0xfffffafa</backgroundcolor>
 	<defaultcontrol always="true">55</defaultcontrol>
 	<allowoverlay>yes</allowoverlay>

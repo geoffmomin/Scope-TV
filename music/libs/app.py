@@ -4,13 +4,14 @@ import os
 import sys
 import re
 import xbmc
-import traceback
-import unicodedata
+import glob
+from xmltom3u import *
+import shutil
 
-from threading import Thread
-try: import json
-except: import simplejson as json
-from urllib import quote_plus
+
+#from urllib import quote_plus
+try:    import cPickle as pickle
+except: import pickle
 
 
 if 'linux' in sys.platform:
@@ -23,13 +24,16 @@ elif 'darwin' in sys.platform:
 from pysqlite2 import dbapi2 as sqlite
 
 def getImage(str1, str2):
-    return "http://www.scripts.allalla.com/music_pipe.php?q=%%22%s%%22+%%22%s%%22" % ( quote_plus( str1 ), quote_plus( str2 ) )
+    #return "http://boxee.bartsidee.nl/music_pipe.php?q=%%22%s%%22+%%22%s%%22" % ( quote_plus( str1 ), quote_plus( str2 ) )
+    return ''
 
 def Duration(seconds):
     m, s = divmod(seconds, 60)
     return "%02d:%02d" % (m, s)
 
+###Retreive new data
 def down(**kwargs):
+    mc.ShowDialogWait()
     if kwargs.get('id', False):
         list = mc.GetWindow(_id).GetList(kwargs['id'])
         item = list.GetItem(list.GetFocusedItem())
@@ -55,14 +59,32 @@ def down(**kwargs):
 
         mc.GetWindow(_id).GetList(55).SetItems( items )
 
+    elif 'pl://' in path:
+        items = _pl.GetDirectory( str( path ) )
+        if len(items) < 1:
+            mc.ShowDialogNotification("No items found")
+            return
+
+        try:    label = re.compile('pl\://(.*?)/').findall(path)[0]
+        except: label = path.replace('pl://', '')
+
+        if kwargs.get('push', True) and 'scan=true' not in path:
+            mc.GetWindow(_id).PushState()
+
+        for item in items:
+            item.SetProperty('header', label)
+
+        mc.GetWindow(_id).GetList(55).SetItems( items )
+
     elif path == 'home':
         items = mc.ListItems()
 
         home = [{'label':'Artists', 'path':'boxeedb://artists', 'header':'HOME', 'thumb':'artists.png'},
                 {'label':'Albums', 'path':'boxeedb://albums', 'header':'HOME', 'thumb':'albums.png'},
                 {'label':'Genre', 'path':'boxeedb://genres', 'header':'HOME', 'thumb':'genre.png'},
-                {'label':'Random', 'path':'boxeedb://random/?limit=40', 'header':'HOME', 'thumb':'shuffle.png'},
+                {'label':'Playlists', 'path':'pl://playlist', 'header':'HOME', 'thumb':'genre.png'},
                 {'label':'Search', 'path':'search', 'header':'HOME', 'thumb':'search.png'},
+		{'label':'Shuffle Random', 'path':'boxeedb://random/?limit=40', 'header':'HOME', 'thumb':'shuffle.png'},
                 {'label':'Now Playing', 'path':'nowplaying', 'header':'HOME', 'thumb':'now.png'},]
 
         for i in home:
@@ -78,7 +100,9 @@ def down(**kwargs):
         mc.GetWindow(_id).PushState()
         items = mc.ListItems()
 
-        search = [{'label':'Artists', 'path':'boxeedb://search/?id=artists', 'header':'SEARCH', 'thumb':'search.png'},
+        search = [
+                {'label':'Songs', 'path':'boxeedb://search/?id=songs', 'header':'SEARCH', 'thumb':'search.png'},
+                {'label':'Artists', 'path':'boxeedb://search/?id=artists', 'header':'SEARCH', 'thumb':'search.png'},
                 {'label':'Albums', 'path':'boxeedb://search/?id=albums', 'header':'SEARCH', 'thumb':'search.png'},
                 {'label':'Genre', 'path':'boxeedb://search/?id=genres', 'header':'SEARCH', 'thumb':'search.png'},
         ]
@@ -103,15 +127,20 @@ def down(**kwargs):
             mc.GetWindow(_id).GetList(55).SetItems( items )
         else:
             mc.ShowDialogNotification("No music playing")
-
+		
     else:
         if item.GetProperty('header') == 'Now Playing':
             _player.PlaySelected(list.GetFocusedItem())
+        elif item.GetProperty('header') == 'playlist':
+            _player.play('play', 'selected')
         else:
             mc.GetWindow(_id).PushState()
             mc.GetWindow(_id).GetControl(7000).SetVisible(True)
             mc.GetWindow(_id).GetControl(5).SetFocus()
+    mc.HideDialogWait()
 
+
+###Player
 class myPlayer(mc.Player):
     def __init__(self):
         mc.Player.__init__(self, False)
@@ -156,20 +185,11 @@ class myPlayer(mc.Player):
         mc.GetWindow(_id).GetControl(7000).SetVisible(False)
 
 
+###Processing
 class dbAcces:
     def __init__(self):
-        self.temp = xbmc.translatePath('special://temp')
         self.db_raw = xbmc.translatePath('special://home/Database/boxee_catalog.db')
-        if _embedded:
-            self.db = os.path.join( self.temp, 'boxee_catalog.db' )
-            self.createLink()
-        else:
-            self.db = self.db_raw
-
-    def createLink(self):
-        if os.path.exists(self.db) or os.path.islink(self.db):
-            os.remove(self.db)
-        os.symlink( self.db_raw, self.db )
+        self.db = getPath(self.db_raw)
 
     def buildSQL(self, path):
         path2 = path.replace('boxeedb://', '')
@@ -182,7 +202,7 @@ class dbAcces:
 
         params = {}
         if len(data) > 1:
-            params = self.parse_qs(data[1])
+            params = parse_qs(data[1])
 
         sql = ''
         order = ''
@@ -217,6 +237,9 @@ class dbAcces:
                 elif params['id'] == 'genres':
                     sql = '%s%sstrGenre LIKE "%%%s%%"' % (sql_genres, sql_where, response)
                     order = 'order_genres'
+                elif params['id'] == 'songs':
+                    sql = '%s%saudio_files.strTitle LIKE "%%%s%%"' % (sql_files, sql_and, response)
+                    order = 'order_files'
 
         elif data[0] == 'artist':
             if params.get('songs', False) and params.get('id', False):
@@ -317,16 +340,167 @@ class dbAcces:
         c.close()
         return items
 
-    def parse_qs(self, u):
-        return '?' in u and dict(p.split('=') for p in u[u.index('?') + 1:].split('&')) or {}
+
+class plAcces:
+    def __init__(self):
+        self.sources = self.getSources()
+
+    def getSources(self):
+        response = xbmc.executehttpapi("GetShares(music)")
+        sources = response.split('<li>')
+        source_path = [source.split(';')[1] for source in sources if source != '']
+        return (path.replace('\n', '') for path in source_path if 'special:' not in path)
+
+    def getSMB(self, path, dir=False):
+        response = xbmc.executehttpapi("GetDirectory(%s)" % path)
+        dirs_raw = response.replace('\n', '').split('<li>')
+        dirs_raw.pop(0)
+        try:
+            if dir:
+                return [ dir.split("/")[-2] for dir in dirs_raw]
+            else:
+                return [ dir.split(".m3u")[0]+'.m3u' for dir in dirs_raw if '.m3u' in dir]
+        except:
+            print path
+            print dirs_raw
+            return []
+
+    def getPlaylist(self):
+        data = mc.GetApp().GetLocalConfig().GetValue("playlists")
+        if data != '':
+            try:    return pickle.loads(data)
+            except: return []
+        else:
+            return []
+
+    def savePlaylist(self, playlist):
+        data = pickle.dumps(playlist)
+        mc.GetApp().GetLocalConfig().SetValue("playlists", data)
+
+    def resetPlaylist(self):
+        mc.GetApp().GetLocalConfig().SetValue("playlists", '')
+
+    def walkM3U(self, path):
+        playlist = []
+        for plname in glob.glob( path ):
+            playlist.append( {'label':os.path.basename(plname).replace('.m3u','').encode("utf-8"), 'path':plname, 'thumb':''} )
+        return playlist
 
 
+    def process(self, path):
+        path2 = path.replace('pl://', '')
+        data = path2.split('/')
+        if len(data) == 0:
+            data = [path]
 
+        if data[0] not in ['playlist']:
+            return mc.ListItems(), False
+
+        params = {}
+        if len(data) > 1:
+            params = parse_qs(data[1])
+
+        items = mc.ListItems()
+        playlist = []
+            
+        if params.get('scan', False):
+            mc.ShowDialogNotification("Scanning sources...")
+            itunes = []
+            m3u = []
+            self.resetPlaylist()
+
+            for source in self.sources:
+                if 'smb://' in source:
+                    dirs = self.getSMB(source, True)
+                else:
+                    try:    dirs = os.listdir(source)
+                    except: dirs = []
+                    
+                for item in dirs:
+                    if item == 'iTunes':
+                        itunes.append(source)
+                    elif item == 'Playlists':
+                        m3u.append(source)
+
+            if len(itunes) > 0:
+                mc.ShowDialogNotification("Loading iTunes playlists...")
+                boxee_playlists = os.path.join(mc.GetTempDir(),'playlists')
+                    
+                if not os.path.exists(boxee_playlists):
+                    os.makedirs(boxee_playlists)
+
+                for root, dirs, files in os.walk(boxee_playlists):
+                    for f in files:
+                        os.unlink(os.path.join(root, f))
+                    for d in dirs:
+                        shutil.rmtree(os.path.join(root, d))
+                
+                for source in itunes:
+                    if '\\' in source:
+                        itunes_path = source + '\\itunes\\iTunes Music Library.xml'
+                    else:
+                        itunes_path = source + '/itunes/iTunes Music Library.xml'
+
+                    itunesconvert(itunes_path, source, boxee_playlists)
+                    m3u_path = os.path.join(boxee_playlists,'*.m3u')
+                    playlist += self.walkM3U( m3u_path )
+
+            if len(m3u) > 0:
+                mc.ShowDialogNotification("Loading m3u playlists...")
+                for source in m3u:
+                    if '\\' in source:
+                        m3u_path = source + '\\Playlists\\*.m3u'
+                        playlist += self.walkM3U(m3u_path)
+                    elif 'smb://' in source:
+                        files = self.getSMB(source + '/Playlists/')
+                        print files
+                        list = []
+                        for plname in files:
+                            list.append( {'label':os.path.basename(plname).replace('.m3u','').encode("utf-8"), 'path':plname, 'thumb':''} )
+                        playlist += list
+                    else:
+                        m3u_path = source + '/Playlists/*.m3u'
+                        playlist += self.walkM3U(m3u_path)
+            self.savePlaylist(playlist)
+            
+        else:
+            playlist += self.getPlaylist()
+
+        playlist.insert(0, {'label':'[COLOR FFFFFFFF]Refresh playlists[/COLOR]', 'path':'pl://playlist/?scan=true', 'thumb':'shuffle.png'})
+
+        for i in playlist:
+            item = mc.ListItem(mc.ListItem.MEDIA_UNKNOWN)
+            item.SetLabel(i['label'])
+            item.SetPath(i['path'])
+            item.SetThumbnail(i['thumb'])
+            items.append(item)
+
+        return items
+
+    def GetDirectory(self, path):
+        return self.process(path)
+
+def parse_qs(u):
+    return '?' in u and dict(p.split('=') for p in u[u.index('?') + 1:].split('&')) or {}
+
+def getPath(path):
+    if _embedded:
+        temp_dir = mc.GetTempDir()
+        temp_path = os.path.join( temp_dir, os.path.basename(path) )
+
+        if os.path.exists(temp_path) or os.path.islink(temp_path):
+            os.remove(temp_path)
+
+        os.symlink( path, temp_path )
+        return temp_path
+    else:
+        return path
 
 #INIT APP
 try:    _embedded   = mc.IsEmbedded()
 except: _embedded   = False
-_id                 = 17000
+_id                 = 14000
 _http               = mc.Http()
 _player             = myPlayer()
 _db                 = dbAcces()
+_pl                 = plAcces()
