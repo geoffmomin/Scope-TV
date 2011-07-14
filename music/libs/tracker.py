@@ -1,118 +1,66 @@
-#
-# Tracker Client - A Google Analytics Integration
-# A Python module for interacting with the Tracker web service.
-#
-# Written by /rob, 29 July 2010
-#
-# Usage:
-#
-# Tracker Client uses the Tracker web service to allow Python apps like those found on Boxee to store view and event
-# tracking data on Google Analytics.  To track a page view, simply call the method with the option of passing a
-# parameter for the window's ID or canonical name for easy reporting (e.g. "home").  To track an event, call the
-# method with event argument with the category as the value (e.g. "Content", "Video"), action argument with an
-# appropriate value (e.g. "Play", "Pause") and label argument (e.g. The title of the content being played).  Value
-# is optional.
-#
-# Returns false if fail.  Returns transparent GIF if success.
-#
-# Examples:
-#
-# Instantiate object:
-# myTracker = tracker.Tracker()
-#
-# Instantiate object with your own Google Analytics code.
-# myTracker = tracker.Tracker("UA-xxxxxxx-x")
-#
-# Track page view:
-# tracker.Tracker.trackView()
-#
-# Track page view with non-default window:
-# tracker.Tracker.trackView("browse")
-#
-# Track Play event:
-# myTracker.trackEvent("Video", "Play", "Foo Bar")
-
 import mc
+import sys, os
 import urllib
+import random
+from time import time
 
 class Tracker:
     def __init__(self, uacode = False, debug = False):
         self.uacode = uacode
-        self.version = "beta"
-        self.path = "http://dir.boxee.tv/apps/common/tracker.php"
+        self.version = "1.0"
+        self.domain = 'boxee.bartsidee.nl'
         self.application = mc.GetApp().GetId()
-        self.debug = debug
+
+        if 'linux' in sys.platform:
+            self.os = 'Linux'
+        elif 'win32' in sys.platform:
+            self.os = 'Windows'
+        elif 'darwin' in sys.platform:
+            self.os = 'Macintosh'
+
+	try: 	self.platform = mc.GetPlatform()
+	except: self.platform = 'Boxee'
+        try: 	self.deviceid = mc.GetDeviceId()
+	except: self.deviceid = 'None'
+	try:    self.boxeeid = mc.GetUniqueId()
+	except: self.boxeeid = 'None'
 
     def trackView(self, window = False):
-        mc.LogDebug("%%%%%%%%%%%%%%%%%%% Tracker: Tracking view. %%%%%%%%%%%%%%%%%%%")
         if not window:
-            window = "14000"
-
-        mc.LogDebug("%%%%%%%%%%%%%%%%%%% Tracker: Requesting tracker image path. %%%%%%%%%%%%%%%%%%%%%%%%%")
-        params = {
-                  'application': self.application,
-                  'window': window
-        }
-
-        if self.uacode:
-            params['uacode'] = self.uacode
-        if self.debug:
-            params['debug'] = self.debug
-
-        tracker = self.request(self.path + "?" + urllib.urlencode(params))
-
-        if self.debug:
-            mc.LogDebug("%%%%%%%%%%%%%%%%%%% Tracker: Path is " + str(tracker) + " %%%%%%%%%%%%%%%%%%%%%%%%%")
-            tracker = self.request(str(tracker))
-            mc.LogDebug("%%%%%%%%%%%%%%%%%%% GA Debug: " + str(tracker) + " %%%%%%%%%%%%%%%%%%%%%%%%%")
-        elif tracker:
-            mc.LogDebug("%%%%%%%%%%%%%%%%%%% Tracker: Path is " + str(tracker) + " %%%%%%%%%%%%%%%%%%%%%%%%%")
-            return self.request(str(tracker))
+            page = '/%s' % self.application
         else:
-            mc.LogDebug("%%%%%%%%%%%%%%%%%%% Tracker: tracking request failed. %%%%%%%%%%%%%%%%%%%")
-            return False
+            page = '/%s/%s' % (self.application, urllib.quote_plus(window) )
+			
+        var_utmac = self.uacode 
+        var_utmhn = self.domain
+        var_utmn = str(random.randint(1000000000,9999999999))
+        var_cookie = str(random.randint(10000000,99999999))
+        var_random = str(random.randint(1000000000,2147483647))
+        var_referer = '-'
+        var_uservar = '-'
+        var_utmp = page
+        var_today = str(int(time()))
 
-    def trackEvent(self, event, action, label, value = False):
-        mc.LogDebug("%%%%%%%%%%%%%%%%%%% Tracker: Tracking event. %%%%%%%%%%%%%%%%%%%")
-        params = {
-                  'application': self.application,
-                  'event': event,
-                  'action': action,
-                  'label': label
-        }
+        imgpath = 'http://www.google-analytics.com/__utm.gif?utmwv=3&utmn='
+	imgpath += var_utmn + '&utme=-utmcs=-&utmsr=-&utmsc=-&utmul=-&utmje=0&utmfl=-&utmdt=-&utmhn='
+	imgpath += var_utmhn + '&utmhid=' + var_utmn + '&utmr=' + var_referer
+        imgpath += '&utmp=' + var_utmp + '&utmac=' + var_utmac + '&utmcc=__utma%3D'
+        imgpath += var_cookie + '.' + var_random + '.' + var_today + '.' + var_today
+        imgpath += '.' + var_today + '.2%3B%2B__utmz%3D' + var_cookie + '.'
+        imgpath += var_today + '.2.2.utmcsr%3D_SOURCE_%7Cutmccn%3D_CAMPAIGN_%7Cutmcmd%3D_MEDIUM_%7Cutmctr%3D_KEYWORD_%7Cutmcct%3D_CONTENT_%3B%2B__utmv%3D'
+        imgpath += var_cookie + '.' + var_uservar + '%3B'
 
-        if value:
-            eventPath = eventPath + "&value=" + value
-        if self.uacode:
-            params['uacode'] = self.uacode
-        if self.debug:
-            params['debug'] = self.debug
+        print imgpath
 
-        eventPath = self.path + "?" + urllib.urlencode(params)
+        tracker = self.request(imgpath)
 
-        mc.LogDebug("%%%%%%%%%%%%%%%%%%% Tracker: Requesting tracker image path. %%%%%%%%%%%%%%%%%%%%%%%%%")
-        tracker = self.request(eventPath)
-
-        if self.debug:
-            mc.LogDebug("%%%%%%%%%%%%%%%%%%% Tracker: Path is " + str(tracker) + " %%%%%%%%%%%%%%%%%%%%%%%%%")
-            tracker = self.request(str(tracker))
-            mc.LogDebug("%%%%%%%%%%%%%%%%%%% GA Debug: " + str(tracker) + " %%%%%%%%%%%%%%%%%%%%%%%%%")
-        elif tracker:
-            mc.LogDebug("%%%%%%%%%%%%%%%%%%% Tracker: Path is " + str(tracker) + " %%%%%%%%%%%%%%%%%%%%%%%%%")
-            return self.request(str(tracker))
+        if tracker:
+            return True
         else:
-            mc.LogDebug("%%%%%%%%%%%%%%%%%%% Tracker: tracking request failed. %%%%%%%%%%%%%%%%%%%")
             return False
 
     def request(self, path):
-        # Instatiate HTTP object
         myHttp = mc.Http()
-
-        # Set User Agent
-        myHttp.SetUserAgent("Boxee App (boxee/beta " + self.version + " tracker)")
-
-        # Get data
+        myHttp.SetUserAgent( 'Boxee App (%s; U; %s; en-us; Boxee %s %s)' % (self.os, self.platform, self.deviceid, self.boxeeid) )
         data = myHttp.Get(path)
-
-        # Make request
         return data

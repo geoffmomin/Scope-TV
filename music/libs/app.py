@@ -4,9 +4,9 @@ import os
 import sys
 import re
 import xbmc
-import glob
 from xmltom3u import *
 import shutil
+import boxeeboxclient
 
 
 #from urllib import quote_plus
@@ -167,8 +167,11 @@ class myPlayer(mc.Player):
                     self.playlist().Add(item)
                 self.PlaySelected(focus)
             else:
-                self.playlist().Add(item)
-                self.PlaySelected(0)
+                if '.xsp' in item.GetPath():
+                    xbmc.executebuiltin('PlayerControl(PartyMode(' + item.getPath_HTTP() + '))')
+                else:
+                    self.playlist().Add(item)
+                    self.PlaySelected(0)
 
         elif type == 'queue':
             if id == 'all':
@@ -188,8 +191,18 @@ class myPlayer(mc.Player):
 ###Processing
 class dbAcces:
     def __init__(self):
+        self.temp = xbmc.translatePath('special://temp')
         self.db_raw = xbmc.translatePath('special://home/Database/boxee_catalog.db')
-        self.db = getPath(self.db_raw)
+        if _embedded:
+            self.db = os.path.join( self.temp, 'boxee_catalog.db' )
+            self.createLink()
+        else:
+            self.db = self.db_raw
+
+    def createLink(self):
+        if os.path.exists(self.db) or os.path.islink(self.db):
+            os.remove(self.db)
+        os.symlink( self.db_raw, self.db )
 
     def buildSQL(self, path):
         path2 = path.replace('boxeedb://', '')
@@ -343,15 +356,44 @@ class dbAcces:
 
 class plAcces:
     def __init__(self):
-        self.sources = self.getSources()
+        pass
 
-    def getSources(self):
+    def getSourcesJSON(self):
+        try:
+            response = self._json.callMethod("Files.GetSources", {"media": "music"}, True)
+            return [str(item['file']) for item in response['result']['shares']]
+        except:
+            return []
+
+    def getSourcesHTTP(self):
+        if _embedded:
+            return self.getSourcesJSON()
+        
         response = xbmc.executehttpapi("GetShares(music)")
-        sources = response.split('<li>')
-        source_path = [source.split(';')[1] for source in sources if source != '']
-        return (path.replace('\n', '') for path in source_path if 'special:' not in path)
+        print response
+        try:
+            sources = response.split('<li>')
+            source_path = [source.split(';')[1] for source in sources if source != '']
+            return (path.replace('\n', '') for path in source_path if 'special:' not in path)
+        except:
+            return []
 
-    def getSMB(self, path, dir=False):
+    def getPath_JSON(self, path, dir=False):
+        try:
+            response = self._json.callMethod("Files.GetDirectory", {"directory": path}, True)
+            if dir:
+                return [str(item['label']) for item in response['result']['files']]
+            else:
+                dirs_raw = [str(item['label']) for item in response['result']['files']]
+                return [ dir.rsplit(".", 1)[0] for dir in dirs_raw if '.m3u' in dir or '.xsp' in dir]
+        except:
+            return []
+
+
+    def getPath_HTTP(self, path, dir=False):
+        if _embedded:
+            return self.getPath_JSON(path, dir)
+
         response = xbmc.executehttpapi("GetDirectory(%s)" % path)
         dirs_raw = response.replace('\n', '').split('<li>')
         dirs_raw.pop(0)
@@ -359,11 +401,12 @@ class plAcces:
             if dir:
                 return [ dir.split("/")[-2] for dir in dirs_raw]
             else:
-                return [ dir.split(".m3u")[0]+'.m3u' for dir in dirs_raw if '.m3u' in dir]
+                return [ dir.rsplit(".", 1)[0] for dir in dirs_raw if '.m3u' in dir or '.xsp' in dir]
         except:
             print path
             print dirs_raw
             return []
+
 
     def getPlaylist(self):
         data = mc.GetApp().GetLocalConfig().GetValue("playlists")
@@ -380,12 +423,9 @@ class plAcces:
     def resetPlaylist(self):
         mc.GetApp().GetLocalConfig().SetValue("playlists", '')
 
-    def walkM3U(self, path):
-        playlist = []
-        for plname in glob.glob( path ):
-            playlist.append( {'label':os.path.basename(plname).replace('.m3u','').encode("utf-8"), 'path':plname, 'thumb':''} )
-        return playlist
-
+    def walkPath(self, path):
+        fnames = os.listdir(path)
+        return [ {'label':fname.split(".")[0].encode("utf-8"), 'path':joinPath([path, fname]), 'thumb':''} for fname in fnames if '.m3u' in fname or '.xsp' in fname]
 
     def process(self, path):
         path2 = path.replace('pl://', '')
@@ -405,13 +445,26 @@ class plAcces:
             
         if params.get('scan', False):
             mc.ShowDialogNotification("Scanning sources...")
+
+            #Get Sources
+            if _embedded:
+                try:
+                    self._json = boxeeboxclient.BoxeeBoxClient('bartsidee.music', '127.0.0.1')
+                    self._json.Pair()
+                except:
+                    return
+                
+            self.sources = self.getSourcesHTTP()
+
+            #Set vars
             itunes = []
             m3u = []
             self.resetPlaylist()
 
+            
             for source in self.sources:
                 if 'smb://' in source:
-                    dirs = self.getSMB(source, True)
+                    dirs = self.getPath_HTTP(source, True)
                 else:
                     try:    dirs = os.listdir(source)
                     except: dirs = []
@@ -442,25 +495,24 @@ class plAcces:
                         itunes_path = source + '/itunes/iTunes Music Library.xml'
 
                     itunesconvert(itunes_path, source, boxee_playlists)
-                    m3u_path = os.path.join(boxee_playlists,'*.m3u')
-                    playlist += self.walkM3U( m3u_path )
+                    playlist += self.walkPath( boxee_playlists )
 
             if len(m3u) > 0:
                 mc.ShowDialogNotification("Loading m3u playlists...")
                 for source in m3u:
                     if '\\' in source:
-                        m3u_path = source + '\\Playlists\\*.m3u'
-                        playlist += self.walkM3U(m3u_path)
+                        m3u_path = source + '\\Playlists\\'
+                        playlist += self.walkPath(m3u_path)
                     elif 'smb://' in source:
-                        files = self.getSMB(source + '/Playlists/')
-                        print files
+                        files = self.getPath_HTTP(source + '/Playlists/')
                         list = []
                         for plname in files:
                             list.append( {'label':os.path.basename(plname).replace('.m3u','').encode("utf-8"), 'path':plname, 'thumb':''} )
                         playlist += list
                     else:
-                        m3u_path = source + '/Playlists/*.m3u'
-                        playlist += self.walkM3U(m3u_path)
+                        m3u_path = source + '/Playlists/'
+                        playlist += self.walkPath(m3u_path)
+                    print playlist
             self.savePlaylist(playlist)
             
         else:
@@ -483,24 +535,19 @@ class plAcces:
 def parse_qs(u):
     return '?' in u and dict(p.split('=') for p in u[u.index('?') + 1:].split('&')) or {}
 
-def getPath(path):
-    if _embedded:
-        temp_dir = mc.GetTempDir()
-        temp_path = os.path.join( temp_dir, os.path.basename(path) )
-
-        if os.path.exists(temp_path) or os.path.islink(temp_path):
-            os.remove(temp_path)
-
-        os.symlink( path, temp_path )
-        return temp_path
+def joinPath(path):
+    if '\\' in path[0]:
+        return "\\".join(path)
     else:
-        return path
+        return "/".join(path)
 
 #INIT APP
 try:    _embedded   = mc.IsEmbedded()
 except: _embedded   = False
+
 _id                 = 14000
 _http               = mc.Http()
 _player             = myPlayer()
 _db                 = dbAcces()
 _pl                 = plAcces()
+
