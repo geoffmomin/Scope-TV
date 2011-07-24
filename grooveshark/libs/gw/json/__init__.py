@@ -1,7 +1,3 @@
-import sys
-
-sys.path.append('/home/solver/.xbmc/addons/script.module.simplejson/lib')
-
 import simplejson
 
 def dumps(var):

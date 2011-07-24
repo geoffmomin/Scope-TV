@@ -2,16 +2,6 @@
 <window type="window" id="14000">
 	<allowoverlay>yes</allowoverlay>
 	<defaultcontrol>205</defaultcontrol>	
-	<onload lang="python">
-<![CDATA[
-import mc
-from libs import app
-object = app.GrooveClass()
-
-config = mc.GetApp().GetLocalConfig()
-window = mc.GetWindow(14000)
-]]>
-	</onload>  
 	<controls>
 		<control type="image">
 			<description>Background</description>
