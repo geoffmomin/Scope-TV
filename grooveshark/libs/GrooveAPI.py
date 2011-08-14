@@ -15,7 +15,7 @@ SECRET_KEY = "backToTheScienceLab"
 
 RANDOM_CHARS = "1234567890abcdef"
 VALIDITY_SESSION = 172800 #2 days
-VALIDITY_TOKEN = 1 # ca. 16 min.
+VALIDITY_TOKEN = 1000 # ca. 16 min.
 
 class LoginTokensExceededError(Exception):
 	def __init__(self):
