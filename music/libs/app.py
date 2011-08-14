@@ -264,7 +264,7 @@ class dbAcces:
 
         elif data[0] == 'album':
             if params.get('id', False):
-                sql = sql_files + sql_and +'audio_files.idAlbum = "%s"' % params['id']
+                sql = sql_files + sql_and +'audio_files.idAlbum = "%s" ORDER BY audio_files.iTrackNumber ASC' % params['id']
                 order = 'order_files'
 
         elif data[0] == 'genre':
