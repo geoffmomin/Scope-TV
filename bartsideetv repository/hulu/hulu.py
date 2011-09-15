@@ -1,25 +1,31 @@
-import mc, re, os, sys
-sys.path.append(os.path.join(mc.GetApp().GetAppDir(), 'libs'))
-import ba, md5, time, base64
-from beautifulsoup.BeautifulSoup import BeautifulSoup
+from default import *
+from library import *
+import tools
+
+sys.path.append(os.path.join(CWD, 'external'))
+
+from BeautifulSoup import BeautifulSoup
 from urllib import quote_plus
 
-class Module(object):
-    def __init__(self):
-        self.name = "Hulu"                          #Name of the channel
-        self.type = ['search', 'genre']             #Choose between 'search', 'list', 'genre'
-        self.episode = True                         #True if the list has episodes
-        self.filterlist = {'All TV':'tv', 'TV Clips':'clips', 'TV Episodes':'episodes','Games':'games' ,'All Movies':'movies' ,'Movie Clips':'film_clips' ,'Movie Trailers':'film_trailers' ,'Feature Films':'feature_films'}
-        self.filter = self.filterlist.keys()
-        self.genre = ['popular','recent']           #Array to add a genres to the genre section [type genre must be enabled]
-        self.content_type = 'video/x-flv'           #Mime type of the content to be played
-        self.country = 'US'                         #2 character country id code
+class Module(BARTSIDEE_MODULE):
+    def __init__(self, app):
+        self.app            = app
+        BARTSIDEE_MODULE.__init__(self, app)
+
+        self.name           = "Hulu"                            #Name of the channel
+        self.type           = ['search', 'genre']               #Choose between 'search', 'list', 'genre'
+        self.episode        = True                              #True if the list has episodes
+        self.filterlist     = {'All TV':'tv', 'TV Clips':'clips', 'TV Episodes':'episodes','Games':'games' ,'All Movies':'movies' ,'Movie Clips':'film_clips' ,'Movie Trailers':'film_trailers' ,'Feature Films':'feature_films'}
+        self.filter         = self.filterlist.keys()
+        self.genre          = ['popular','recent']              #Array to add a genres to the genre section [type genre must be enabled]
+        self.content_type   = 'video/x-flv'                     #Mime type of the content to be played
+        self.country        = 'US'                              #2 character country id code
         
-        self.url_base = 'http://www.hulu.com'
+        self.url_base       = 'http://www.hulu.com'
 
     def Search(self, search):
-        url = self.url_base + '/browse/search?alphabet=All&family_friendly=0&closed_captioned=0&has_free=1&has_huluplus=0&has_hd=0&channel=All&subchannel=&network=All&display=Shows%20with%20full%20episodes%20only&decade=All&type=tv&view_as_thumbnail=false&block_num=0&keyword=' + quote_plus(search)
-        data = ba.FetchUrl(url)
+        url  = self.url_base + '/browse/search?alphabet=All&family_friendly=0&closed_captioned=0&has_free=1&has_huluplus=0&has_hd=0&channel=All&subchannel=&network=All&display=Shows%20with%20full%20episodes%20only&decade=All&type=tv&view_as_thumbnail=false&block_num=0&keyword=' + quote_plus(search)
+        data = tools.urlopen(self.app, url)
 
         data = re.compile('"show_list", "(.*?)"\)', re.DOTALL + re.IGNORECASE).search(str(data)).group(1)
         data = data.replace('\\u003c','<').replace('\\u003e','>').replace('\\','').replace('\\n','').replace('\\t','')
@@ -27,19 +33,19 @@ class Module(object):
 
         streamlist = list()
         for info in soup.findAll('a', {'onclick':True}):
-            stream = ba.CreateStream()
-            stream.SetName(info.contents[0])
-            stream.SetId(info['href'])
+            stream         = CreateList()
+            stream.name    = info.contents[0]
+            stream.id      = info['href']
             streamlist.append(stream)
 
         return streamlist
     
     def Episode(self, stream_name, stream_id, page, totalpage):
-        data = ba.FetchUrl(stream_id, 3600)
+        data = tools.urlopen(self.app, stream_id, {'cache':3600})
 
         if data == "":
             mc.ShowDialogNotification("No episode found for " + str(stream_name))
-            return ba.CreateEpisode()
+            return []
 
         soup = BeautifulSoup(data, convertEntities="xml", smartQuotesTo="xml")
         totalpage = len(soup.findAll('tr', 'srh'))
@@ -48,19 +54,19 @@ class Module(object):
             episode_url = re.compile('VideoExpander.subheadingClicked\((.*?)\)"', re.DOTALL + re.IGNORECASE).search(str(data)).group(1)
         except:
             mc.ShowDialogNotification("No episode found for " + str(stream_name))
-            return ba.CreateEpisode()
+            return []
 
         season_number = re.compile('season_number=(.*?)\&', re.DOTALL + re.IGNORECASE).search(str(episode_url)).group(1)
-        show_id = re.compile('show_id=(.*?)\&', re.DOTALL + re.IGNORECASE).search(str(episode_url)).group(1)
+        show_id       = re.compile('show_id=(.*?)\&', re.DOTALL + re.IGNORECASE).search(str(episode_url)).group(1)
 
         pp = []
         for i in range(0,totalpage):
             pp.append(str(int(season_number) - i))
         intpage = int(page) - 1
 
-        url = self.url_base + "/videos/season_expander?order=desc&page=1&season_number=" + str(pp[intpage]) + "&show_id=" + str(show_id) + "&sort=season&video_type=episode"
+        url  = self.url_base + "/videos/season_expander?order=desc&page=1&season_number=" + str(pp[intpage]) + "&show_id=" + str(show_id) + "&sort=season&video_type=episode"
 
-        data = ba.FetchUrl(url)
+        data = tools.urlopen(self.app, url)
         data = re.compile('srh-bottom-' + pp[intpage] +'", "(.*?)"\);', re.DOTALL + re.IGNORECASE).search(str(data)).group(1)
         data = data.replace('\\u003c','<').replace('\\u003e','>').replace('\\','')
 
@@ -91,14 +97,14 @@ class Module(object):
 
         for x in range(0,i):
             if not 'plus' in link[x]:
-                episode = ba.CreateEpisode()
-                episode.SetName(stream_name)
-                episode.SetId(link[x])
-                episode.SetDescription('Episode: ' + str(number[x]) + ' - '  + str(name[x]))
-                episode.SetThumbnails(thumb[x])
-                episode.SetDate('Season: ' + pp[intpage])
-                episode.SetPage(page)
-                episode.SetTotalpage(totalpage)
+                episode             =   CreateEpisode()
+                episode.name        =   stream_name
+                episode.id          =   link[x]
+                episode.description =   'Episode: ' + str(number[x]) + ' - '  + str(name[x])
+                episode.thumbnails  =   thumb[x]
+                episode.date        =   'Season: ' + pp[intpage]
+                episode.page        =   page
+                episode.totalpage   =   totalpage
                 episodelist.append(episode)
 
         return episodelist
@@ -106,18 +112,18 @@ class Module(object):
     def Genre(self, genre, filter, page, totalpage):
         url = self.url_base + '/'+genre
         
-        if filter != "": url = url + '/' + str(self.filterlist[filter])
-        url = url + '?'
-        url = url + 'page=' + str(page) +'&has_free=1'
-        data = ba.FetchUrl(url, 3600)
+        if filter != "":
+            url = url + '/' + str(self.filterlist[filter])
+        url  = url + '?'
+        url  = url + 'page=' + str(page) +'&has_free=1'
+        data = tools.urlopen(self.app, url, {'cache':3600})
 
         if data == "":
             mc.ShowDialogNotification("No genre found for " + str(genre))
-            genrelist = list()
-            return genrelist
+            return []
 
         soup = BeautifulSoup(data, convertEntities="xml", smartQuotesTo="xml")
-        if totalpage == "":
+        if totalpage == 1:
             totalpage = 10
 
         div_show = soup.find( 'table', {'id' : 'results_list'})
@@ -141,30 +147,30 @@ class Module(object):
                 except:
                     desc = ''
 
-                genreitem = ba.CreateEpisode()
-                genreitem.SetName('[UPPERCASE]'+title +'[/UPPERCASE] ' + desc)
-                genreitem.SetId(path)
-                genreitem.SetPage(page)
-                genreitem.SetTotalpage(totalpage)
+                genreitem           =   CreateEpisode()
+                genreitem.name      =   '[UPPERCASE]'+title +'[/UPPERCASE] ' + desc
+                genreitem.id        =   path
+                genreitem.page      =   page
+                genreitem.totalpage =   totalpage
                 genrelist.append(genreitem)
 
         return genrelist
 
     def Play(self, stream_name, stream_id, subtitle):
-        path = self.tinyurl(stream_id)
-        play = ba.CreatePlay()
-        play.SetPath(quote_plus(path))
-        play.SetDomain('bartsidee.nl')
-        play.SetJSactions(quote_plus('http://bartsidee.nl/boxee/apps/js/hulu.js'))
+        path            =   self.tinyurl(stream_id)
+        play            =   CreatePlay()
+        play.path       =   quote_plus(path)
+        play.domain     =   'bartsidee.nl'
+        play.jsactions  =   quote_plus('http://bartsidee.nl/boxee/apps/js/hulu.js')
         return play
 
     def tinyurl(self, params):
         url = "http://tinyurl.com/api-create.php?url=" + str(params)
-        return ba.FetchUrl(url)
+        return tools.urlopen(self.app, url)
 
     def GetThumb(self, id):
         url = "http://www.hulu.com/videos/info/" + str(id)
-        data = ba.FetchUrl(url,0,True)
+        data = tools.urlopen(self.app, url,{'xhr':True})
         try:
             return re.compile('"thumbnail_url":"(.*?)"', re.DOTALL + re.IGNORECASE).search(str(data)).group(1)
         except:

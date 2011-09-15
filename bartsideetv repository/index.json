@@ -1,0 +1,23 @@
+{
+	"name": "Bartsidee TV Repo",
+	"modules": [
+		{"name":"youtube", 		"version":3, 	"country":"",	"desc":"Watch Onine video's from Youtube"},
+		{"name":"navix", 		"version":1, 	"country":"", 	"desc":"Watch Online content from the Navi-x source \n note that some content might not work"},
+		{"name":"animefreak",	"version":1, 	"country":"",	"desc":"Watch different anime shows from AnimeFreak \n Note that some streams might not work" 	},
+		{"name":"ard", 			"version":1, 	"country":"DE",	"desc":"Watch German shows from the broadcaster ARD"	},
+		{"name":"zdf", 			"version":1, 	"country":"DE",	"desc":"Watch German shows from the broadcaster ZDF"	},
+		{"name":"bbc", 			"version":1,	"country":"UK",	"desc":"Watch British shows from the broadcaster BBC"	},
+		{"name":"itv", 			"version":1, 	"country":"UK", "desc":"Watch British shows from the broadcaster ITV"}	, 
+		{"name":"hulu", 		"version":1,	"country":"US",	"desc":"Watch US shows from the broadcaster hulu \n Note that this does not work on the boxee box"},
+		{"name":"net5", 		"version":2, 	"country":"NL",	"desc":"Watch Dutch shows from the broadcaster NET5"	},
+		{"name":"nl24", 		"version":1, 	"country":"NL",	"desc":"Watch Dutch live streams from the Public Broadcasting Service"},
+		{"name":"sbs6", 		"version":2,	"country":"NL",	"desc":"Watch Dutch shows from the broadcaster SBS6"	},
+		{"name":"rtl", 			"version":5, 	"country":"NL",	"desc":"Watch Dutch shows from the broadcaster RTL"	},
+		{"name":"uzg", 			"version":1, 	"country":"NL",	"desc":"Watch Dutch shows from the Public Broadcasting Service"	},
+		{"name":"veronica", 	"version":2, 	"country":"NL",	"desc":"Watch Dutch shows from the broadcaster Veronica"	},
+		{"name":"tmf", 			"version":1, 	"country":"NL",	"desc":"Watch Music Video's from the Dutch broadcaster TMF"	},
+		{"name":"svt", 			"version":1, 	"country":"SE",	"desc":"Watch Swedish shows from the broadcaster SVT"},
+		{"name":"cbc", 			"version":1, 	"country":"CA",	"desc":"Watch Canedian shows from the broadcaster CBC"	},
+		{"name":"chinatv", 		"version":1, 	"country":"CN",	"desc":"Watch live streams from different Chinese Broadcasters"	}
+	]
+}

@@ -1,43 +1,47 @@
-import mc, re, os, sys
-sys.path.append(os.path.join(mc.GetApp().GetAppDir(), 'libs'))
-import ba
+from default import *
+from library import *
+import tools
+
+sys.path.append(os.path.join(CWD, 'external'))
+
 from urllib import quote_plus
 from urllib2 import *
 import csv
 
-class Module(object):
-    def __init__(self):
-        self.name = "Navi-X"                        #Name of the channel
-        self.type = ['search', 'genre']             #Choose between 'search', 'list', 'genre'
-        self.episode = False                         #True if the list has episodes
-        self.filter = []                            #Option to set a filter to the list
-        self.genrelist = {'Top 24h':'day', 'Top Week':'week', 'Newest':'new', 'Updated':'update'}
-        self.genre = self.genrelist.keys()           #Array to add a genres to the genre section [type genre must be enabled]
-        self.content_type = ''                      #Mime type of the content to be played
-        self.country = ''                           #2 character country id code
+class Module(BARTSIDEE_MODULE):
+    def __init__(self, app):
+        self.app        =   app
+        BARTSIDEE_MODULE.__init__(self, app)
+
+        self.name       =   "Navi-X"                            #Name of the channel
+        self.type       =   ['search', 'genre']                 #Choose between 'search', 'list', 'genre'
+        self.episode    =   False                               #True if the list has episodes
+        self.genrelist  =   {'Top 24h':'day', 'Top Week':'week', 'Newest':'new', 'Updated':'update'}
+        self.genre      =   self.genrelist.keys()               #Array to add a genres to the genre section [type genre must be enabled]
+        self.country    =   ''                                  #2 character country id code
         
-        self.url_base = 'http://navix.turner3d.net'
-        self.support = {'video': 'V: ', 'audio': 'A: ', 'playlist':'P: '}
+        self.url_base   =   'http://navix.turner3d.net'
+        self.support    =   {'video': 'V: ', 'audio': 'A: ', 'playlist':'P: '}
 
     def Search(self, search):
-        url = self.url_base + '/playlist/search/' + quote_plus(search)
-        data = self.ParsePlaylist(url, 60)
+        url     = self.url_base + '/playlist/search/' + quote_plus(search)
+        data    = self.ParsePlaylist(url, 60)
 
         streamlist = list()
         if len(data) < 1:
-            return streamlist
+            return []
         
         for item in data:
             if ("type" and "URL") in item.keys():
                 if item['type'] in self.support.keys():
-                    stream = ba.CreateStream()
-                    stream.SetName(self.support[item['type']] + re.sub("(\[.*?\])", '', item['name']))
+                    stream              =   CreateList()
+                    stream.name         =   (self.support[item['type']] + re.sub("(\[.*?\])", '', item['name']))
                     if item['type'] == 'playlist':
-                        stream.SetId(item['URL'])
-                        stream.SetEpisode("True")
+                        stream.id       =   item['URL']
+                        stream.episode  =   "True"
                     else:
-                        try: stream.SetId(item['URL'] + '|' + item['processor'])
-                        except: stream.SetId(item['URL'])
+                        try: stream.id      =   item['URL'] + '|' + item['processor']
+                        except: stream.id   =   item['URL']
                     streamlist.append(stream)
 
         return streamlist
@@ -48,30 +52,30 @@ class Module(object):
         episodelist = list()
         if len(data) < 1:
             mc.ShowDialogNotification("No supported types found: " + str(stream_name))
-            return episodelist
+            return []
 
         for item in data:
             if ("type" and "URL") in item.keys():
                 if item['type'] in self.support.keys():
-                    episode = ba.CreateEpisode()
-                    episode.SetName(self.support[item['type']] + re.sub("(\[.*?\])", '', item['name']))
-                    try: episode.SetThumbnails(item['thumb'])
-                    except:episode.SetThumbnails('')
-                    try: episode.SetDescription(item['description'])
-                    except: """"""
+                    episode                     =   CreateEpisode()
+                    episode.name                =   self.support[item['type']] + re.sub("(\[.*?\])", '', item['name'])
+                    try: episode.thumbnails     =   item['thumb']
+                    except:episode.thumbnails   =   ''
+                    try: episode.description    =   item['description']
+                    except: pass
                     if item['type'] == 'playlist':
-                        episode.SetEpisode('True')
-                        episode.SetId(item['URL'])
+                        episode.episode         =   'True'
+                        episode.id              =   item['URL']
                     else:
-                        try: episode.SetId(item['URL'] + '|' + item['processor'])
-                        except: episode.SetId(item['URL'])
-                    episode.SetPage(page)
-                    episode.SetTotalpage(totalpage)
+                        try: episode.id         =   item['URL'] + '|' + item['processor']
+                        except: episode.id      =   item['URL']
+                    episode.page                =   page
+                    episode.totalpage           =   totalpage
                     episodelist.append(episode)
 
         if len(episodelist) < 1 :
             mc.ShowDialogNotification("No supported types found: " + str(stream_name))
-            return episodelist
+            return []
 
         return episodelist
 
@@ -82,48 +86,45 @@ class Module(object):
         genrelist = list()
         if len(data) < 1:
             mc.ShowDialogNotification("No data found for " + str(genre))
-            return episodelist
+            return []
 
         totalpage = 10
 
         for item in data:
             if ("type" and "URL") in item.keys():
                 if item['type'] in self.support.keys():
-                    genreitem = ba.CreateEpisode()
-                    genreitem.SetName(self.support[item['type']] + re.sub("(\[.*?\])", '', item['name']))
+                    genreitem               =   CreateEpisode()
+                    genreitem.name          =   self.support[item['type']] + re.sub("(\[.*?\])", '', item['name'])
                     if item['type'] == 'playlist':
-                        genreitem.SetEpisode("True")
-                        genreitem.SetId(item['URL'])
+                        genreitem.episode   =   "True"
+                        genreitem.id        =   item['URL']
                     else:
-                        try: genreitem.SetId(item['URL'] + '|' + item['processor'])
-                        except: genreitem.SetId(item['URL'])
-                    genreitem.SetPage(page)
-                    genreitem.SetTotalpage(totalpage)
+                        try: genreitem.id   =   item['URL'] + '|' + item['processor']
+                        except: genreitem.id=   item['URL']
+                    genreitem.page          =   page
+                    genreitem.totalpage     =   totalpage
                     genrelist.append(genreitem)
 
         if len(genrelist) < 1 :
             mc.ShowDialogNotification("No data found for " + str(genre)[3:])
+            return []
         #genrelist.pop()
 
         return genrelist
 
     def Play(self, stream_name, stream_id, subtitle):
         path = self.GetPath(stream_id)
-        play = ba.CreatePlay()
+        play = CreatePlay()
         if 'youtube.com' in path:
-            play.SetPath(path)
-            play.SetDomain('youtube.com')
-            play.SetJSactions('')
-            play.SetContent_type('video/x-flv')
-        elif 'http' in path:
-            play.SetPath(path)
-        elif 'mms' in path:
-            play.SetPath(path)
-        elif 'rtmp' in path:
-            play.SetPath(path)
+            play.path           =   path
+            play.domain('youtube.com')
+            play.jsactions      =   ''
+            play.content_type   =   'video/x-flv'
+        elif 'http' in path or 'mms' in path or 'rtmp' in path:
+            play.path           =   path
+
         else:
             mc.ShowDialogNotification("Data format currently not supported")
-            play.SetPath('')
         return play
 
     def ParsePlaylist(self, url, max=False):

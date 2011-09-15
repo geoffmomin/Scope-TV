@@ -1,21 +1,31 @@
-import mc, re, os, sys
-sys.path.append(os.path.join(mc.GetApp().GetAppDir(), 'libs'))
-import ba, md5, time, base64
-from beautifulsoup.BeautifulSoup import BeautifulSoup
-from urllib import quote_plus
-import datetime, time
-import simplejson as json
+from default import *
+from library import *
+import tools
 
-class Module(object):
-    def __init__(self):
-        self.name = "Uitzending Gemist"             #Name of the channel
-        self.type = ['search','genre']             #Choose between 'search', 'list', 'genre'
-        self.episode = True                         #True if the list has episodes
-        self.filter = ['nl1','nl2','nl3']           #Option to set a filter to the list
-        self.genrelist = {'Kijktips':'kijktips', 'Top Vandaag':'vandaag','Top Gister':'gisteren','Top Maand':'maand', 'Top Week':'week', 'Vandaag':'vandaag', 'Gisteren':'gisteren'}           #Array to add a genres to the genre section [type genre must be enabled]
-        self.genre = ['Kijktips','Vandaag','Gisteren','Top Vandaag','Top Gister','Top Week','Top Maand']
-        self.content_type = 'video/x-ms-asf'        #Mime type of the content to be played
-        self.country = 'NL'                         #2 character country id code
+sys.path.append(os.path.join(CWD, 'external'))
+
+import base64
+from BeautifulSoup import BeautifulSoup
+from urllib import quote_plus
+import datetime
+try:    import simplejson as json
+except: import json
+try:    import md5
+except: import haslib as md5
+
+class Module(BARTSIDEE_MODULE):
+    def __init__(self, app):
+        self.app            = app
+        BARTSIDEE_MODULE.__init__(self, app)
+
+        self.name           = "Uitzending Gemist"        #Name of the channel
+        self.type           = ['search','genre']         #Choose between 'search', 'list', 'genre'
+        self.episode        = True                       #True if the list has episodes
+        self.filter         = ['nl1','nl2','nl3']        #Option to set a filter to the list
+        self.genrelist      = {'Kijktips':'kijktips', 'Top Vandaag':'vandaag','Top Gister':'gisteren','Top Maand':'maand', 'Top Week':'week', 'Vandaag':'vandaag', 'Gisteren':'gisteren'}         
+        self.genre          = ['Kijktips','Vandaag','Gisteren','Top Vandaag','Top Gister','Top Week','Top Maand']
+        self.content_type   = 'video/x-ms-asf'           #Mime type of the content to be played
+        self.country        = 'NL'                       #2 character country id code
         
         self.url_base = 'http://beta.uitzendinggemist.nl'
         self.initDate()
@@ -23,7 +33,7 @@ class Module(object):
     def Search(self, search):
         url = self.url_base + '/programmas/search'
         params = 'query=' + quote_plus(search)
-        data = ba.FetchUrl(url, 0, True, params)
+        data = tools.urlopen(self.app, url, {'xhr':True, 'post':params})
 
         soup = BeautifulSoup(data, convertEntities=BeautifulSoup.HTML_ENTITIES, smartQuotesTo="xml")
         div_page = soup.find("ul")
@@ -35,16 +45,16 @@ class Module(object):
             return streamlist
 
         for info in div_page.findAll('a'):
-            stream = ba.CreateStream()
-            stream.SetName(info.contents[0])
-            stream.SetId(info['href'].split('/')[2])
+            stream = CreateList()
+            stream.name     =  info.contents[0]
+            stream.id       =  info['href'].split('/')[2]
             streamlist.append(stream)
 
         return streamlist
     
     def Episode(self, stream_name, stream_id, page, totalpage):
         url = self.url_base + '/quicksearch/episodes?page=' + str(page) + '&series_id=' + stream_id
-        data = ba.FetchUrl(url, 3600)
+        data = tools.urlopen(self.app, url, {'cache':3600})
 
         if data == "":
             mc.ShowDialogNotification("No episode found for " + str(stream_name))
@@ -70,15 +80,17 @@ class Module(object):
             except:
 		id = False
             if id:
-		episode = ba.CreateEpisode()
-		episode.SetName(stream_name)
-		episode.SetId(self.url_base + id)
-		episode.SetDescription(info.span.contents[0].replace(' ','') + ' - '+ info.p.contents[0])
-		try: episode.SetThumbnails(info.a.img['data-src'])
-                except: episode.SetThumbnails(info.a.img['src'])
-		episode.SetDate(info.h3.a.contents[0])
-		episode.SetPage(page)
-		episode.SetTotalpage(totalpage)
+		episode = CreateEpisode()
+		episode.name            =   stream_name
+		episode.id              =   self.url_base + id
+		episode.description     =   info.span.contents[0].replace(' ','') + ' - '+ info.p.contents[0]
+		try:
+                    episode.thumbnails  =   info.a.img['data-src']
+                except:
+                    episode.thumbnails  =   info.a.img['src']
+		episode.date            =   info.h3.a.contents[0]
+		episode.page            =   page
+		episode.totalpage       =   totalpage
 		episodelist.append(episode)
 
         return episodelist
@@ -98,7 +110,7 @@ class Module(object):
             type = 'ol'
 
         if type == 'json':
-            data = ba.FetchUrl(url, 3600, True)
+            data = tools.urlopen(self.app, url, {'cache':3600, 'xhr':True})
             json_data = json.loads(data)
 
             genrelist = []
@@ -107,22 +119,22 @@ class Module(object):
                 return genrelist
 
             for item in json_data:
-                genreitem = ba.CreateEpisode()
-                if item['name'] != item['series_name']: genreitem.SetName(item['series_name']+': '+item['name'])
-                else: genreitem.SetName(item['name'])
-                genreitem.SetId(self.url_base + item['link'])
-                genreitem.SetDescription(item['contents'])
-                genreitem.SetThumbnails(item['thumbnail'])
-                genreitem.SetDate('')
-                genreitem.SetFilter('')
-                genreitem.SetPage(page)
-                genreitem.SetTotalpage(totalpage)
+                genreitem   = CreateEpisode()
+                if item['name'] != item['series_name']:
+                    genreitem.name      =   item['series_name']+': '+item['name']
+                else:
+                    genreitem.name      =   item['name']
+                genreitem.id            =   self.url_base + item['link']
+                genreitem.description   =   item['contents']
+                genreitem.thumbnails    =   item['thumbnail']
+                genreitem.page          =   page
+                genreitem.totalpage     =   totalpage
                 genrelist.append(genreitem)
 
             return genrelist
 
         else:
-            data = ba.FetchUrl(url, 3600)
+            data = tools.urlopen(self.app, url, {'cache':3600})
             genrelist = []
             if data == "":
                 mc.ShowDialogNotification("No genre found for " + str(genre))
@@ -171,26 +183,26 @@ class Module(object):
                         title = info.findAll(attrs={"class" : "series"})[0].contents[0]+': [COLOR FFA6A6A6]'+info.find('a', {'class' : 'episode'}).contents[0]+'[/COLOR]'
                         desc = ''
                         date = info.find('td', {'class' : 'right'})['title'].split(' ')[0]
-                    genreitem = ba.CreateEpisode()
-                    genreitem.SetName(title)
-                    genreitem.SetId(path)
-                    genreitem.SetDescription(desc)
-                    genreitem.SetThumbnails(thumb)
-                    genreitem.SetDate(date)
-                    genreitem.SetFilter(str(omroep).upper())
-                    genreitem.SetPage(page)
-                    genreitem.SetTotalpage(totalpage)
+                    genreitem = CreateEpisode()
+                    genreitem.name          =   title
+                    genreitem.id            =   path
+                    genreitem.description   =   desc
+                    genreitem.thumbnails    =   thumb
+                    genreitem.date          =   date
+                    genreitem.filter        =   str(omroep).upper()
+                    genreitem.page          =   page
+                    genreitem.totalpage     =   totalpage
                     genrelist.append(genreitem)
 
             return genrelist
         
     def Play(self, stream_name, stream_id, subtitle):
-        data = ba.FetchUrl(stream_id, 3600)
+        data = tools.urlopen(self.app, stream_id, {'cache':3600})
         soup = BeautifulSoup(data, convertEntities="xml", smartQuotesTo="xml")
         streamid = re.compile("load_player\('(.*?)'", re.DOTALL + re.IGNORECASE).search(str(soup)).group(1)
         if streamid == "": mc.ShowDialogNotification("Geen stream beschikbaar...")
 
-        data = ba.FetchUrl('http://pi.omroep.nl/info/security', 0)
+        data = tools.urlopen(self.app, 'http://pi.omroep.nl/info/security', {'cache':0})
         soup = BeautifulSoup(data, convertEntities="xml", smartQuotesTo="xml")
         try:
             key = soup.session.key.contents[0]
@@ -204,16 +216,16 @@ class Module(object):
         md5code = md5.md5(md5code).hexdigest()
 
         streamdataurl = 'http://pi.omroep.nl/info/stream/aflevering/' + str(streamid) + '/' + str(md5code).upper()
-        data = ba.FetchUrl(streamdataurl, 0).decode('utf-8')
+        data = tools.urlopen(self.app, streamdataurl, {'cache':0}).decode('utf-8')
         xmlSoup = BeautifulSoup(data)
         streamurl = xmlSoup.find(attrs={"compressie_formaat" : "wvc1"})
         url_play = streamurl.streamurl.contents[0].replace(" ","").replace("\n","").replace("\t","")
 
-        play = ba.CreatePlay()
-        play.SetPath(url_play)
+        play = CreatePlay()
+        play.path               =   url_play
         if subtitle:
-            play.SetSubtitle(self.GetSubtitle(security, streamid))
-            play.SetSubtitle_type('sami')
+            play.subtitle       =   self.GetSubtitle(security, streamid)
+            play.subtitle_type  =   'sami'
 
         return play
 

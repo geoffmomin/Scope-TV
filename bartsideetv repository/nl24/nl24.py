@@ -1,20 +1,20 @@
-import mc, re, os, sys
-sys.path.append(os.path.join(mc.GetApp().GetAppDir(), 'libs'))
-import ba
-from beautifulsoup.BeautifulSoup import BeautifulSoup
-from itertools import izip
+from default import *
+from library import *
+import tools
 
-class Module(object):
-    def __init__(self):
-        self.name = "Nederland 24"                  #Name of the channel
-        self.type = ['list']                        #Choose between 'search', 'list', 'genre'
-        self.episode = False                        #True if the list has episodes
-        self.filter = []                            #Option to set a filter to the list
-        self.genre = []                             #Array to add a genres to the genre section [type genre must be enabled]
-        self.content_type = ''        #Mime type of the content to be played
-        self.country = 'NL'                         #2 character country id code
+sys.path.append(os.path.join(CWD, 'external'))
 
-        self.channels = [
+class Module(BARTSIDEE_MODULE):
+    def __init__(self, app):
+        self.app            = app
+        BARTSIDEE_MODULE.__init__(self, app)
+        
+        self.name           = "Nederland 24"                  #Name of the channel
+        self.type           = ['list']                        #Choose between 'search', 'list', 'genre'
+        self.episode        = False                           #True if the list has episodes
+        self.country        = 'NL'                            #2 character country id code
+
+        self.channels       = [
             ["101 TV", "http://livestreams.omroep.nl/npo/101tv-bb", "video/x-ms-asf", "Weg met suffe en saaie tv! Het is tijd voor 101 TV, het 24-uurs jongerenkanaal van BNN en de Publieke Omroep. Met rauwe en brutale programma's, van en voor jongeren. Boordevol hilarische fragmenten, spannende livegames, bizarre experimenten en nieuws over festivals en gratis concertkaartjes. Kijken dus!"],
             ["Best 24", "http://livestreams.omroep.nl/npo/best24-bb", "video/x-ms-asf","Best 24 brengt hoogtepunten uit zestig jaar televisiehistorie. Het is een feelgoodkanaal met 24 uur per dag de leukste, grappigste en meest spraakmakende programma's uit de Hilversumse schatkamer. Best 24: de schatkamer van de publieke omroep."],
             ["Consumenten 24", "http://livestreams.omroep.nl/npo/consumenten24-bb", "video/x-ms-asf","Op Consumenten 24 ziet u dagelijks het laatste consumentennieuws en kunt u de hele week kijken naar herhalingen van Radar, Kassa, en vele andere consumentenprogramma's. In Vraag en Beantwoord kunt u live uw vraag stellen per telefoon en webcam."],
@@ -43,19 +43,19 @@ class Module(object):
     def List(self):
         streamlist = list()
         for item in self.channels:
-            stream = ba.CreateStream()
-            stream.SetName(item[0])
-            stream.SetId(item[0])
+            stream          =   CreateList()
+            stream.name     =   item[0]
+            stream.id       =   item[0]
             streamlist.append(stream)
 
         return streamlist
 
     def Play(self, stream_name, stream_id, subtitle):
-        play = ba.CreatePlay()
+        play = CreatePlay()
         for item in self.channels:
             if item[0] == stream_id:
-                play.SetPath(item[1])
-                play.SetContent_type(item[2])
+                play.path           =   item[1]
+                play.content_type   =   item[2]
 
         return play
 

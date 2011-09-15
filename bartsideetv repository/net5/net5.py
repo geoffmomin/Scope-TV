@@ -1,27 +1,31 @@
-import mc, re, os, sys
-sys.path.append(os.path.join(mc.GetApp().GetAppDir(), 'libs'))
-import ba
-from beautifulsoup.BeautifulSoup import BeautifulSoup
+from default import *
+from library import *
+import tools
+
+sys.path.append(os.path.join(CWD, 'external'))
+
+from BeautifulSoup import BeautifulSoup
 from itertools import izip
 
-class Module(object):
-    def __init__(self):
-        self.name = "Net5 Gemist"                   #Name of the channel
-        self.type = ['list']              #Choose between 'search', 'list', 'genre'
-        self.episode = True                         #True if the list has episodes
-        self.filter = []                            #Option to set a filter to the list
-        self.genre = []                             #Array to add a genres to the genre section [type genre must be enabled]
-        self.content_type = 'video/x-ms-asf'        #Mime type of the content to be played
-        self.country = 'NL'                         #2 character country id code
+class Module(BARTSIDEE_MODULE):
+    def __init__(self, app):
+        self.app            = app
+        BARTSIDEE_MODULE.__init__(self, app)
+
+        self.name           = "Net5 Gemist"                     #Name of the channel
+        self.type           = ['list']                          #Choose between 'search', 'list', 'genre'
+        self.episode        = True                              #True if the list has episodes
+        self.content_type   = 'video/x-ms-asf'                  #Mime type of the content to be played
+        self.country        = 'NL'                              #2 character country id code
 
 
-        self.url_base = 'http://www.net5.nl'
-        self.url_home = '%s/web/show/id=1017155/langid=43' % self.url_base
-        self.exclude = []
+        self.url_base       = 'http://www.net5.nl'
+        self.url_home       = '%s/web/show/id=1017155/langid=43' % self.url_base
+        self.exclude        = []
 
     def List(self):
         url = self.url_home
-        data = ba.FetchUrl(url)
+        data = tools.urlopen(self.app, url)
         soup = BeautifulSoup(data, convertEntities=BeautifulSoup.HTML_ENTITIES, smartQuotesTo="xml")
 
         div_main  = soup.findAll( 'div', {'class' : 'mo-a alphabetical'})[0]
@@ -29,30 +33,28 @@ class Module(object):
 
         streamlist = []
         for info in div_show.findAll('a'):
-            stream = ba.CreateStream()
+            stream = CreateList()
             name = info.contents[0]
-            try:
+            if info.has_key('href'):
                 id = self.url_base + info['href']
                 if not name in self.exclude:
-                    stream.SetName(name)
-                    stream.SetId(id)
+                    stream.name     =   name
+                    stream.id       =   id
                     streamlist.append(stream)
-            except:
-                pass
 
         return streamlist
 
     def Episode(self, stream_name, stream_id, page, totalpage):
         url = str(stream_id) + '/page=' + str(page)
-        data = ba.FetchUrl(url, 3600)
+        data = tools.urlopen(self.app, url, {'cache':3600})
 
         if data == "":
             mc.ShowDialogNotification("Geen afleveringen gevonden voor " + str(stream_name))
-            return ba.CreateEpisode()
+            return []
 
         soup = BeautifulSoup(data, convertEntities=BeautifulSoup.HTML_ENTITIES, smartQuotesTo="xml")
 
-        if totalpage == "":
+        if totalpage == 1:
             try:
                 pages = soup.findAll( 'div', {'class' : 'paginator'})[0]
                 pages = pages.findAll('span')
@@ -68,26 +70,26 @@ class Module(object):
 
         if len(info) < 1:
             mc.ShowDialogNotification("Geen afleveringen gevonden voor " + str(stream_name))
-            return ba.CreateEpisode()
+            return []
 
         episodelist = list()
         for info_i, airtime_i in izip(info, airtime):
-            episode = ba.CreateEpisode()
-            episode.SetName(stream_name)
-            episode.SetId(self.url_base + info_i.a['href'])
-            episode.SetThumbnails(self.url_base + info_i.find('img')['src'])
-            episode.SetDate(airtime_i.a.span.contents[0])
-            episode.SetPage(page)
-            episode.SetTotalpage(totalpage)
+            episode                 =   CreateEpisode()
+            episode.name            =   stream_name
+            episode.id              =   self.url_base + info_i.a['href']
+            episode.thumbnails      =   self.url_base + info_i.find('img')['src']
+            episode.date            =   airtime_i.a.span.contents[0]
+            episode.page            =   page
+            episode.totalpage       =   totalpage
             episodelist.append(episode)
 
         return episodelist
 
     def Play(self, stream_name, stream_id, subtitle):
-        data = ba.FetchUrl(stream_id)
+        data = tools.urlopen(self.app, stream_id)
         url_play = re.compile('<a class="wmv-player-holder" href="(.*?)"></a>', re.DOTALL + re.IGNORECASE).search(data).group(1)
 
-        play = ba.CreatePlay()
-        play.SetPath(url_play)
+        play        = CreatePlay()
+        play.path   = url_play
 
         return play

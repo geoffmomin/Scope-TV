@@ -1,30 +1,35 @@
-import mc, re, os, sys
-sys.path.append(os.path.join(mc.GetApp().GetAppDir(), 'libs'))
-import ba
-from beautifulsoup.BeautifulSoup import BeautifulSoup
-from itertools import izip
-import datetime, time
+from default import *
+from library import *
+import tools
 
-class Module(object):
-    def __init__(self):
-        self.name = "ZDF Mediathek"             #Name of the channel
-        self.type = ['list', 'genre']             #Choose between 'search', 'list', 'genre'
-        self.episode = True                         #True if the list has episodes
-        self.filter = []           #Option to set a filter to the list
-        self.genre = {}           #Array to add a genres to the genre section [type genre must be enabled]
-        self.content_type = 'video/x-ms-asx'        #Mime type of the content to be played
-        self.country = 'DE'                         #2 character country id code
+sys.path.append(os.path.join(CWD, 'external'))
+
+from BeautifulSoup import BeautifulSoup
+from itertools import izip
+import datetime
+
+class Module(BARTSIDEE_MODULE):
+    def __init__(self, app):
+        self.app            = app
+        BARTSIDEE_MODULE.__init__(self, app)
+
+        self.name           = "ZDF Mediathek"                   #Name of the channel
+        self.type           = ['list', 'genre']                 #Choose between 'search', 'list', 'genre'
+        self.episode        = True                              #True if the list has episodes
+        self.content_type   = 'video/x-ms-asx'                  #Mime type of the content to be played
+        self.country        = 'DE'                              #2 character country id code
+        self.genre          = {}
         
-        self.url_base = 'http://www.zdf.de'
+        self.url_base       = 'http://www.zdf.de'
         self.initDate()
 
     def List(self):
         array = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
         title = []
-        id = []
+        id    = []
         for letter in array:
-            url = self.url_base + '/ZDFmediathek/xmlservice/web/sendungenAbisZ?characterRangeStart='+letter+'&detailLevel=2&characterRangeEnd='+letter
-            data = ba.FetchUrl(url)
+            url  = self.url_base + '/ZDFmediathek/xmlservice/web/sendungenAbisZ?characterRangeStart='+letter+'&detailLevel=2&characterRangeEnd='+letter
+            data = tools.urlopen(self.app, url)
             soup = BeautifulSoup(data, convertEntities="xml", smartQuotesTo="xml")
 
             title.extend(soup.findAll('title'))
@@ -32,100 +37,101 @@ class Module(object):
 
         streamlist = list()
         for title_i,id_i in izip(title,id):
-            stream = ba.CreateStream()
-            stream.SetName(title_i.contents[0].replace('"',''))
-            stream.SetId(id_i.contents[0])
+            stream          = CreateList()
+            stream.name     = title_i.contents[0].replace('"','')
+            stream.id       = id_i.contents[0]
             streamlist.append(stream)
 
         return streamlist
     
     def Episode(self, stream_name, stream_id, page, totalpage):
 
-        url = self.url_base + '/ZDFmediathek/xmlservice/web/aktuellste?id='+stream_id+'&maxLength=50'
-        data = ba.FetchUrl(url, 3600)
+        url  = self.url_base + '/ZDFmediathek/xmlservice/web/aktuellste?id='+stream_id+'&maxLength=50'
+        data = tools.urlopen(self.app, url, {'cache':3600})
         soup = BeautifulSoup(data, convertEntities="xml", smartQuotesTo="xml")
         
         if len(data) < 5:
             mc.ShowDialogNotification("No episode found for " + str(stream_name))
-            episodelist = list()
-            return episodelist
+            return []
 
         teaser = soup.findAll('teaser')
 
         episodelist = list()
         for info in teaser:
             if info.type.contents[0] == 'video':
-                title = info.find('title')
-                title = info.find('title')
-                detail = info.find('detail')
-                id = info.find('assetid')
+                title   = info.find('title')
+                title   = info.find('title')
+                detail  = info.find('detail')
+                id      = info.find('assetid')
                 airtime = info.find('airtime')
                 airtime = airtime.contents[0]
-                thumb = self.url_base + '/ZDFmediathek/contentblob/'+ str(id.contents[0]) +'/timg276x155blob'
+                thumb   = self.url_base + '/ZDFmediathek/contentblob/'+ str(id.contents[0]) +'/timg276x155blob'
 
-                episode = ba.CreateEpisode()
-                episode.SetName(title.contents[0])
-                episode.SetId(id.contents[0])
-                episode.SetDescription(stream_name + ': ' + detail.contents[0])
-                episode.SetThumbnails(thumb)
-                episode.SetDate(airtime)
-                episode.SetPage(page)
-                episode.SetTotalpage(totalpage)
+                episode                 = CreateEpisode()
+                episode.name            = title.contents[0]
+                episode.id              = id.contents[0]
+                episode.description     = stream_name + ': ' + detail.contents[0]
+                episode.thumbnails      = thumb
+                episode.date            = airtime
+                episode.page            = page
+                episode.totalpage       = totalpage
                 episodelist.append(episode)
 
         return episodelist
 
     def Genre(self, genre, filter, page, totalpage):
-        id = self.genre[genre]
-        url = self.url_base + '/ZDFmediathek/xmlservice/web/sendungVerpasst?startdate=' + id +'&enddate='+id+'&maxLength=50'
-        data = ba.FetchUrl(url, 2400)
+        id   = self.genre[genre]
+        url  = self.url_base + '/ZDFmediathek/xmlservice/web/sendungVerpasst?startdate=' + id +'&enddate='+id+'&maxLength=50'
+        data = tools.urlopen(self.app, url, {'cache':2400})
         soup = BeautifulSoup(data, convertEntities="xml", smartQuotesTo="xml")
 
         genrelist = list()
         if len(soup) < 20:
             mc.ShowDialogNotification("No episode found for " + str(genre))
-            return genrelist
+            return []
 
         teaser = soup.findAll('teaser')
 
         for info in teaser:
             if info.type.contents[0] == 'video':
-                title = info.find('title')
-                id = info.find('assetid')
+                title   = info.find('title')
+                id      = info.find('assetid')
                 airtime = info.find('airtime')
                 airtime = airtime.contents[0]
 
-                genreitem = ba.CreateEpisode()
-                genreitem.SetName(title.contents[0])
-                genreitem.SetId(id.contents[0])
-                genreitem.SetDate(airtime[-5:])
-                genreitem.SetPage(page)
-                genreitem.SetTotalpage(totalpage)
+                genreitem               = CreateEpisode()
+                genreitem.name          = title.contents[0]
+                genreitem.id            = id.contents[0]
+                genreitem.date          = airtime[-5:]
+                genreitem.page          = page
+                genreitem.totalpage     = totalpage
                 genrelist.append(genreitem)
+
         if len(genrelist) < 1:
             mc.ShowDialogNotification("No episode found for " + str(genre))
+
         return genrelist
         
     def Play(self, stream_name, stream_id, subtitle):
-        url = 'http://www.zdf.de/ZDFmediathek/xmlservice/web/beitragsDetails?ak=web&id='+stream_id
-        data = ba.FetchUrl(url)
+        url  = 'http://www.zdf.de/ZDFmediathek/xmlservice/web/beitragsDetails?ak=web&id='+stream_id
+        data = tools.urlopen(self.app, url)
         soup = BeautifulSoup(data, convertEntities="xml", smartQuotesTo="xml")
 
-        url = soup.find('formitaet',{'basetype':'wmv3_wma9_asf_mms_asx_http'})
-        url = url.url.contents[0]
+        url  = soup.find('formitaet',{'basetype':'wmv3_wma9_asf_mms_asx_http'})
+        url  = url.url.contents[0]
 
-        sub = soup.find('caption')
+        sub  = soup.find('caption')
         try:
             sub = sub.url.contents[0]
         except:
             sub = ''
 
-        play = ba.CreatePlay()
-        play.SetPath(url)
+        play        = CreatePlay()
+        play.path   = url
         if subtitle:
             if sub:
-                play.SetSubtitle(str(sub))
-                play.SetSubtitle_type('flashxml')
+                play.subtitle           =   str(sub)
+                play.setSubtitle_type   =   'flashxml'
 
         return play
 

@@ -1,20 +1,24 @@
-import mc, re, os, sys
-sys.path.append(os.path.join(mc.GetApp().GetAppDir(), 'libs'))
-import ba
-from urllib import quote_plus
-from urllib2 import *
-import csv
-from beautifulsoup.BeautifulSoup import BeautifulSoup
+from default import *
+from library import *
+import tools
 
-class Module(object):
-    def __init__(self):
-        self.name = "Anime Freak TV"               #Name of the channel
-        self.type = ['list']              #Choose between 'search', 'list', 'genre'
-        self.episode = True                         #True if the list has episodes
-        self.filter = []                            #Option to set a filter to the list
-        self.genre = []                             #Array to add a genres to the genre section [type genre must be enabled]
-        self.content_type = ''                  #Mime type of the content to be played
-        self.country = ''                         #2 character country id code
+sys.path.append(os.path.join(CWD, 'external'))
+
+import csv
+from BeautifulSoup import BeautifulSoup
+
+class Module(BARTSIDEE_MODULE):
+    def __init__(self, app):
+        self.app            = app
+        BARTSIDEE_MODULE.__init__(self, app)
+        
+        self.name           = "Anime Freak TV"             #Name of the channel
+        self.type           = ['list']                     #Choose between 'search', 'list', 'genre'
+        self.episode        = True                         #True if the list has episodes
+        self.filter         = []                           #Option to set a filter to the list
+        self.genre          = []                           #Array to add a genres to the genre section [type genre must be enabled]
+        self.content_type   = ''                           #Mime type of the content to be played
+        self.country        = ''                           #2 character country id code
 
         
         self.url_base = 'http://www.animefreak.tv'
@@ -22,7 +26,7 @@ class Module(object):
 
     def List(self):
         url = self.url_base + '/book'
-        data = ba.FetchUrl(url)
+        data = tools.urlopen(self.app, url)
         soup = BeautifulSoup(data, convertEntities=BeautifulSoup.HTML_ENTITIES, smartQuotesTo="xml")
 
         div_main  = soup.findAll( 'div', {'id' : 'primary'})[0]
@@ -30,22 +34,22 @@ class Module(object):
 
         streamlist = list()
         for info in div_show.findAll('a'):
-            stream = ba.CreateStream()
+            stream = CreateList()
             name = info.contents[0]
             id = self.url_base + info['href']
             if not name in self.exclude:
-                stream.SetName(name)
-                stream.SetId(id)
+                stream.name =   name
+                stream.id   =   id
                 streamlist.append(stream)
 
         return streamlist
 
     def Episode(self, stream_name, stream_id, page, totalpage):
-        data = ba.FetchUrl(stream_id, 3600)
+        data = tools.urlopen(self.app, stream_id, {'cache':3600})
 
         if data == "":
             mc.ShowDialogNotification("Geen afleveringen gevonden voor " + str(stream_name))
-            return [ba.CreateEpisode()]
+            return [CreateEpisode()]
 
         soup = BeautifulSoup(data, convertEntities=BeautifulSoup.HTML_ENTITIES, smartQuotesTo="xml")
 
@@ -58,13 +62,13 @@ class Module(object):
 
         episodelist = list()
         for info in div_main.findAll('a'):
-            episode = ba.CreateEpisode()
-            episode.SetName(info.contents[0].split('Episode')[0])
-            episode.SetId(self.url_base + info['href'])
-            episode.SetThumbnails(thumb['src'])
-            episode.SetDate('Episode' + info.contents[0].split('Episode')[1])
-            episode.SetPage(page)
-            episode.SetTotalpage(totalpage)
+            episode             =   CreateEpisode()
+            episode.name        =   info.contents[0].split('Episode')[0]
+            episode.id          =   self.url_base + info['href']
+            episode.thumbnails  =   thumb['src']
+            episode.date        =   'Episode' + info.contents[0].split('Episode')[1]
+            episode.page        =   page
+            episode.totalpage   =   totalpage
             episodelist.append(episode)
 
         return episodelist
@@ -73,21 +77,15 @@ class Module(object):
         url = stream_id +'|http://navix.turner3d.net/proc/animefreak'
         path = self.GetPath(url)
 
-        play = ba.CreatePlay()
+        play = CreatePlay()
         if 'youtube.com' in path:
-            play.SetPath(path)
-            play.SetDomain('youtube.com')
-            play.SetJSactions('')
-            play.SetContent_type('video/x-flv')
-        elif 'http' in path:
-            play.SetPath(path)
-        elif 'mms' in path:
-            play.SetPath(path)
-        elif 'rtmp' in path:
-            play.SetPath(path)
+            play.path           =   path
+            play.domain         =   'youtube.com'
+            play.content_type   =   'video/x-flv'
+        elif 'http' in path or 'mms' in path or 'rtmp' in path:
+            play.path           =   path
         else:
             mc.ShowDialogNotification("Data format currently not supported")
-            play.SetPath('')
         return play
 
     ####From navi-x module
@@ -141,7 +139,7 @@ class Module(object):
                 if 's_postdata=' in keys: id_postdata = data['s_postdata=']
                 if not id_url: id_url = urlpart[0]
 
-                data = ba.FetchUrl(str(id_url), 0, False, str(id_postdata), str(id_cookie))
+                data = tools.urlopen(self.app, str(id_url), {'cache':0, 'post': str(id_postdata), 'cookie':str(id_cookie)} )
 
                 try:
                     path = re.compile(str(id_regex), re.DOTALL + re.IGNORECASE).search(str(data)).group(1)
@@ -152,7 +150,7 @@ class Module(object):
             elif id == 2:
                 id_url = data[0]
                 id_regex = data[1]
-                data = ba.FetchUrl(str(id_url))
+                data = tools.urlopen(self.app, str(id_url))
                 if 'megavideo' in id_url:
                     try:
                         k1, k2, un, s = re.search(str(id_regex), str(data)).groups()
