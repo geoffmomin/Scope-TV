@@ -7,6 +7,7 @@ sys.path.append(os.path.join(CWD, 'external'))
 import simplejson as json
 import datetime
 import time
+from urllib import quote_plus
 
 class Module(BARTSIDEE_MODULE):
     def __init__(self, app):
@@ -18,7 +19,6 @@ class Module(BARTSIDEE_MODULE):
         self.episode        = True                              #True if the list has episodes
         self.genrelist       = {}
         self.genre          = []                                #Array to add a genres to the genre section [type genre must be enabled]
-        self.content_type   = 'video/mp4'                       #Mime type of the content to be played
         self.country        = 'NL'                              #2 character country id code
 
         self.initDate()
@@ -69,12 +69,12 @@ class Module(BARTSIDEE_MODULE):
 
     def Genre(self, genre, filter, page, totalpage):
         json = self.retreive()
-
         date = self.genrelist[genre]
+
         episodes = self.select_sublist_regex(json, broadcastdatetime=re.compile(date + ".*?"))
 
-        if len(episodes) == "":
-            mc.ShowDialogNotification("No genre found for " + str(genre))
+        if not episodes:
+            mc.ShowDialogNotification("Geen aflevering gevonden voor " + str(genre))
             return []
 
         if totalpage == "":
@@ -100,8 +100,19 @@ class Module(BARTSIDEE_MODULE):
         return genrelist
 
     def Play(self, stream_name, stream_id, subtitle):
-        play        = CreatePlay()
-        play.path   = stream_id
+        try:    embedded = mc.IsEmbedded()
+        except: embedded = False
+
+        play = CreatePlay()
+        if embedded:
+            url             = 'http://www.bartsidee.nl/flowplayer/mp4.html?id=' + str(stream_id)
+            play.path       = quote_plus(url)
+            play.content_type =   'video/x-flv'
+            play.domain     = 'bartsidee.nl'
+            play.jsactions  = quote_plus('http://bartsidee.nl/boxee/apps/js/flow.js')
+        else:
+            play.path   = stream_id
+            play.content_type =   'video/mp4'
 
         return play
 
@@ -111,9 +122,9 @@ class Module(BARTSIDEE_MODULE):
             data = tools.urlopen(self.app, url, {'cache':5400})
         else:
             data = tools.urlopen(self.app, url)
-        return json.loads(data)
-
-		
+        result = json.loads(data)
+        result.reverse()
+        return result
 
     def select_sublist(self, list_of_dicts, **kwargs):
         return [dict(d) for d in list_of_dicts if all(d.get(k)==kwargs[k] for k in kwargs)]

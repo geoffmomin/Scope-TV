@@ -7,6 +7,7 @@ sys.path.append(os.path.join(CWD, 'external'))
 from urllib import quote_plus
 from urllib2 import *
 import csv
+import cStringIO
 
 class Module(BARTSIDEE_MODULE):
     def __init__(self, app):
@@ -128,7 +129,12 @@ class Module(BARTSIDEE_MODULE):
         return play
 
     def ParsePlaylist(self, url, max=False):
-        data = csv.reader(urlopen(url), delimiter="=", quoting=csv.QUOTE_NONE, quotechar='|')
+        raw  = tools.urlopen(self.app, url)
+        output = cStringIO.StringIO()
+        output.write(raw)
+        output.seek(0, 0)
+
+        data = csv.reader( output, delimiter="=", quoting=csv.QUOTE_NONE, quotechar='|')
         if max != 0: number = max
         else: number = 10000
 
@@ -151,10 +157,15 @@ class Module(BARTSIDEE_MODULE):
                             item[line[0]] = item[line[0]] + '=' + line[i]
             else:
                 break
+        output.close()
         return datalist
 
     def ParseProcessor(self, url):
-        data = csv.reader(urlopen(url), delimiter="'", quoting=csv.QUOTE_NONE, quotechar='|')
+        raw  = tools.urlopen(self.app,url)
+        output = cStringIO.StringIO()
+        output.write(raw)
+        output.seek(0, 0)
+        data = csv.reader(output , delimiter="'", quoting=csv.QUOTE_NONE, quotechar='|')
 
         datalist = {}
         keys = []
@@ -166,6 +177,7 @@ class Module(BARTSIDEE_MODULE):
                     if line[0] not in keys:
                         datalist[line[0]] = line[1]
                         keys.append(line[0])
+        output.close()
         return datalist
 
     def GetPath(self, stream_id):
@@ -202,7 +214,8 @@ class Module(BARTSIDEE_MODULE):
                 if 's_postdata=' in keys: id_postdata = data['s_postdata=']
                 if not id_url: id_url = urlpart[0]
 
-                data = ba.FetchUrl(str(id_url), 0, False, str(id_postdata), str(id_cookie))
+                params = {'cookie': str(id_cookie), 'post':str(id_postdata)}
+                data = tools.urlopen(self.app, str(id_url), params)
 
                 try:
                     path = re.compile(str(id_regex), re.DOTALL + re.IGNORECASE).search(str(data)).group(1)
@@ -213,7 +226,7 @@ class Module(BARTSIDEE_MODULE):
             elif id == 2:
                 id_url = data[0]
                 id_regex = data[1]
-                data = ba.FetchUrl(str(id_url))
+                data = tools.urlopen(self.app, str(id_url))
 
                 try:
                     path = re.compile(str(id_regex), re.DOTALL + re.IGNORECASE).search(str(data)).group(1)

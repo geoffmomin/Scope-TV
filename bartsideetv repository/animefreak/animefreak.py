@@ -4,7 +4,6 @@ import tools
 
 sys.path.append(os.path.join(CWD, 'external'))
 
-import csv
 from BeautifulSoup import BeautifulSoup
 
 class Module(BARTSIDEE_MODULE):
@@ -91,25 +90,34 @@ class Module(BARTSIDEE_MODULE):
     ####From navi-x module
     #########################
     def ParseProcessor(self, url):
-        data = csv.reader(urlopen(url), delimiter="'", quoting=csv.QUOTE_NONE, quotechar='|')
+        data = tools.urlopen(self.app, url)
+        data = data.splitlines()
 
         datalist = {}
-        keys = []
-        for i, line in enumerate(data):
-            if line:
-                if len(line) == 1:
-                    datalist[i] = line[0]
-                if len(line) == 2:
-                    if line[0] not in keys:
-                        datalist[line[0]] = line[1]
-                        keys.append(line[0])
+        v1 = False
+        for i, value in enumerate(data):
+            if 'http' in value:
+                datalist[i] = value
+                v1 = True
+                continue
+            if not v1:
+                split = value.split('=', 1)
+                if getattr(split, '__iter__', False):
+                    datalist[split[0]] = split[1]
+                else:
+                    datalist[i] = value
+            else:
+                datalist[i] = value
+
         return datalist
 
     def GetPath(self, stream_id):
         if len(stream_id.split('|')) > 1:
             urlpart = stream_id.split('|')
             url = urlpart[1] + '?url=' + urlpart[0]
+            print url
             data = self.ParseProcessor(url)
+            print data
             keys = data.keys()
 
             if len(data) < 2:
@@ -118,14 +126,12 @@ class Module(BARTSIDEE_MODULE):
             try:
                 if data[0] == 'v2':
                     id = 1
-            except:
-                """"""
+            except: pass
 
             try:
                 if 'http' in data[0]:
                     id = 2
-            except:
-                """"""
+            except: pass
 
             if id == 1:
                 id_url = ''

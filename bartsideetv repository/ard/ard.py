@@ -78,7 +78,7 @@ class Module(BARTSIDEE_MODULE):
                 episode.date        =   airtime.contents[0]
                 episode.page        =   page
                 episode.totalpage   =   totalpage
-                episodelist.append  =   episode
+                episodelist.append(episode)
 
         return episodelist
 

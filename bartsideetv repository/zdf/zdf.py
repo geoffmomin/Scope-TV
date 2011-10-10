@@ -35,11 +35,14 @@ class Module(BARTSIDEE_MODULE):
             title.extend(soup.findAll('title'))
             id.extend(soup.findAll('assetid'))
 
+        unique = dict([(key.contents[0], value.contents[0].replace('"','')) for key, value in izip(id, title)])
+        order  = sorted(unique.items(), key=lambda x: x[1])
+        
         streamlist = list()
-        for title_i,id_i in izip(title,id):
+        for (id, title) in order:
             stream          = CreateList()
-            stream.name     = title_i.contents[0].replace('"','')
-            stream.id       = id_i.contents[0]
+            stream.name     = title
+            stream.id       = id
             streamlist.append(stream)
 
         return streamlist
@@ -70,7 +73,7 @@ class Module(BARTSIDEE_MODULE):
                 episode                 = CreateEpisode()
                 episode.name            = title.contents[0]
                 episode.id              = id.contents[0]
-                episode.description     = stream_name + ': ' + detail.contents[0]
+                episode.description     = stream_name + ': ' + encodeUTF8(detail.contents[0])
                 episode.thumbnails      = thumb
                 episode.date            = airtime
                 episode.page            = page
@@ -82,11 +85,12 @@ class Module(BARTSIDEE_MODULE):
     def Genre(self, genre, filter, page, totalpage):
         id   = self.genre[genre]
         url  = self.url_base + '/ZDFmediathek/xmlservice/web/sendungVerpasst?startdate=' + id +'&enddate='+id+'&maxLength=50'
+        
         data = tools.urlopen(self.app, url, {'cache':2400})
         soup = BeautifulSoup(data, convertEntities="xml", smartQuotesTo="xml")
 
         genrelist = list()
-        if len(soup) < 20:
+        if len(data) < 20:
             mc.ShowDialogNotification("No episode found for " + str(genre))
             return []
 

@@ -43,8 +43,7 @@ class Module(BARTSIDEE_MODULE):
     def Episode(self, stream_name, stream_id, page, totalpage):
         data = tools.urlopen(self.app, stream_id, {'cache':3600})
 
-        if data == "":
-            mc.ShowDialogNotification("No episode found for " + str(stream_name))
+        if not data:
             return []
 
         soup = BeautifulSoup(data, convertEntities="xml", smartQuotesTo="xml")
@@ -53,7 +52,6 @@ class Module(BARTSIDEE_MODULE):
         try:
             episode_url = re.compile('VideoExpander.subheadingClicked\((.*?)\)"', re.DOTALL + re.IGNORECASE).search(str(data)).group(1)
         except:
-            mc.ShowDialogNotification("No episode found for " + str(stream_name))
             return []
 
         season_number = re.compile('season_number=(.*?)\&', re.DOTALL + re.IGNORECASE).search(str(episode_url)).group(1)
@@ -93,9 +91,9 @@ class Module(BARTSIDEE_MODULE):
             if len(tmp.findAll('div', 'vex-h')) == 0:
                 i += 1
 
-        if i != b: totalpage = page
+        if not i: totalpage = page
 
-        for x in range(0,i):
+        for x in xrange(0,b):
             if not 'plus' in link[x]:
                 episode             =   CreateEpisode()
                 episode.name        =   stream_name
