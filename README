@@ -1,15 +1,13 @@
-##########################################################################
-###### ScopeTV Open Apps ##################
-##########################################################################
+ScopeTV OPEN APPS.
 
-You can download an app and put it in the boxee application folder to execute it. 
-Note that there are no automatic updates like in a regular repository.
-For the boxee box you need to apply for a developer account, 
-you can then copy the app to a usb drive with the appropriate developer key and execute it on the box.
+This github has been dedicated to the development of ScopeTV, an upcoming online 
+media centre with social connectivity. The app will offer Netflix, Grooveshark,
+Spotify, and 8tracks media. Several other content providers will be added before
+launch.
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-Copyright (c) 2013, Geoffrey Momin
+Copyright (c) 2013, Geoffrey Momin.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
